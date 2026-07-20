@@ -148,3 +148,38 @@ def _mock_report() -> MarketReport:
     return MarketReport(
         product="iPhone 16", executive_summary="s", price_analysis="p", confidence=0.8
     )
+
+
+async def test_synthesize_handles_platform_with_no_offers():
+    # A real adapter can return a platform with zero offers (product not found);
+    # synthesis must degrade gracefully, not crash on min()/max() of empty prices.
+    from market_agent.tools.models import PlatformData
+
+    empty = PlatformData(
+        platform="amazon", offers=[], reviews=[], price_history=[], popularity_score=10.0
+    )
+    state = _state(
+        collected=CollectedData(query="Obscure Item", platforms=[empty]),
+        plan=AnalysisPlan(analyses=[], platforms=["amazon"], rationale="r"),
+    )
+    update = await _nodes().synthesize(state)
+    assert isinstance(update["report"], MarketReport)
+
+
+async def test_judge_enforces_threshold_over_llm_passed_flag():
+    # A model may return passed=True with a sub-threshold score; the node must
+    # enforce the configured threshold rather than trust the self-report.
+    from market_agent.agent.state import JudgeVerdict
+    from market_agent.llm.base import LLMUsage
+
+    class _InconsistentLLM:
+        async def generate(self, schema, *, system, user, context=None, purpose=""):
+            return (
+                JudgeVerdict(score=0.3, passed=True, critique=""),
+                LLMUsage(purpose=purpose, model="stub"),
+            )
+
+    nodes = AgentNodes(llm=_InconsistentLLM(), settings=Settings(_env_file=None))  # threshold 0.7
+    update = await nodes.judge(_state(report=_mock_report(), revision_count=1))
+    assert update["judge"].score == 0.3
+    assert update["judge"].passed is False  # enforced: 0.3 < 0.7

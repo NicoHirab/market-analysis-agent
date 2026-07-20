@@ -190,9 +190,10 @@ class AgentNodes:
         lines = []
         for p in collected.platforms:
             prices = [o.price for o in p.offers]
+            price_range = f"{min(prices):.2f}-{max(prices):.2f} EUR" if prices else "aucune offre"
             lines.append(
                 f"- {p.platform}: {len(p.offers)} offers "
-                f"({min(prices):.2f}-{max(prices):.2f} EUR), {len(p.reviews)} reviews, "
+                f"({price_range}), {len(p.reviews)} reviews, "
                 f"popularity {p.popularity_score}/100"
             )
         return "\n".join(lines)
@@ -273,6 +274,9 @@ class AgentNodes:
                 },
                 purpose="judge",
             )
+            # Graph enforces the quality gate on the numeric score, not the LLM's
+            # self-reported `passed` flag — configuration governs, not model whim.
+            verdict.passed = verdict.score >= self.settings.judge_threshold
             return {"judge": verdict, "usage": [usage]}
         except Exception as exc:  # judge failure must never kill a finished report
             log.warning("judge failed", extra={"ctx": {"error": str(exc)}})
