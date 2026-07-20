@@ -57,3 +57,15 @@ def build_structured_llm(settings: Settings) -> StructuredLLM:
         max_retries=2,
     )
     return LangChainStructuredLLM(model, model_name=model_name, timeout_s=settings.llm_timeout_s)
+
+
+def validate_llm_settings(settings: Settings) -> None:
+    """Fail fast at startup instead of mid-analysis."""
+    provider = settings.llm_provider.lower()
+    if provider in ("mock", "ollama"):
+        return
+    if not settings.llm_api_key:
+        raise RuntimeError(
+            f"LLM provider '{provider}' requires LLM_API_KEY to be set "
+            "(or use LLM_PROVIDER=mock for a zero-key demo)."
+        )

@@ -137,3 +137,12 @@ async def test_langchain_impl_parses_and_retries(monkeypatch):
     assert fake_runnable.calls == 2  # retried once
     assert usage.input_tokens == 20  # both calls counted
     assert usage.model == "fake-model"
+
+
+def test_validate_llm_settings():
+    from market_agent.llm.factory import validate_llm_settings
+
+    validate_llm_settings(_settings(llm_provider="mock"))  # no raise
+    validate_llm_settings(_settings(llm_provider="ollama"))  # no raise
+    with pytest.raises(RuntimeError, match="LLM_API_KEY"):
+        validate_llm_settings(_settings(llm_provider="deepseek"))
