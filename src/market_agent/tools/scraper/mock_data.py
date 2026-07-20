@@ -21,7 +21,7 @@ _NEGATIVE = [
 _AUTHORS = ["Marie L.", "Julien P.", "Sophie D.", "Karim B.", "Claire M.", "Antoine R.", "Léa T."]
 
 # Per-platform price flavor: (multiplier, popularity bonus)
-_PLATFORM_FLAVOR = {"amazon": (1.0, 10.0), "cdiscount": (0.93, -5.0), "fnac": (1.06, 0.0)}
+_PLATFORM_FLAVOR = {"amazon": (1.0, 10.0), "walmart": (0.93, -5.0), "bestbuy": (1.06, 0.0)}
 
 _ANCHOR_DATE = date(2026, 7, 18)
 

@@ -41,16 +41,16 @@ async def test_mock_market_report_builder_semantics():
         "language": "fr",
         "avg_price": 899.0,
         "degraded": True,
-        "caveats": ["Source 'cdiscount' indisponible : down"],
+        "caveats": ["Source 'walmart' indisponible : down"],
         "critique": "Manque de précision",
     }
     report, _ = await llm.generate(MarketReport, system="s", user="u", context=ctx)
     assert isinstance(report, MarketReport)
     assert report.product == "iPhone 16"
     assert report.confidence == 0.55  # degraded path
-    assert report.caveats == ["Source 'cdiscount' indisponible : down"]
+    assert report.caveats == ["Source 'walmart' indisponible : down"]
     assert report.executive_summary.endswith("(Version révisée suite au contrôle qualité.)")
-    assert "899.00€" in report.executive_summary
+    assert "899.00 $ CAD" in report.executive_summary
 
     clean, _ = await llm.generate(
         MarketReport, system="s", user="u", context={"query": "iPhone 16"}

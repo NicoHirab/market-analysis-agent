@@ -12,18 +12,18 @@ class MockAmazonAdapter(_MockAdapter):
     name = "amazon"
 
 
-class MockCdiscountAdapter(_MockAdapter):
-    name = "cdiscount"
+class MockBestBuyAdapter(_MockAdapter):
+    name = "bestbuy"
 
 
-class MockFnacAdapter(_MockAdapter):
-    name = "fnac"
+class MockWalmartAdapter(_MockAdapter):
+    name = "walmart"
 
 
 KNOWN_PLATFORMS: dict[str, type[PlatformAdapter]] = {
     "amazon": MockAmazonAdapter,
-    "cdiscount": MockCdiscountAdapter,
-    "fnac": MockFnacAdapter,
+    "bestbuy": MockBestBuyAdapter,
+    "walmart": MockWalmartAdapter,
 }
 
 

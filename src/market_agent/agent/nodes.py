@@ -194,7 +194,7 @@ class AgentNodes:
         lines = []
         for p in collected.platforms:
             prices = [o.price for o in p.offers]
-            price_range = f"{min(prices):.2f}-{max(prices):.2f} EUR" if prices else "aucune offre"
+            price_range = f"{min(prices):.2f}-{max(prices):.2f} CAD" if prices else "aucune offre"
             lines.append(
                 f"- {p.platform}: {len(p.offers)} offers "
                 f"({price_range}), {len(p.reviews)} reviews, "

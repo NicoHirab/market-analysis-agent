@@ -7,7 +7,7 @@ from market_agent.tools.scraper.mock_data import generate_platform_data
 def test_generation_is_deterministic_per_query_and_platform():
     a = generate_platform_data("iPhone 16", "amazon")
     b = generate_platform_data("iPhone 16", "amazon")
-    c = generate_platform_data("iPhone 16", "fnac")
+    c = generate_platform_data("iPhone 16", "bestbuy")
     assert a == b
     assert a != c
 
@@ -23,7 +23,7 @@ def test_generated_data_is_realistic():
 
 
 def test_price_history_bounded_for_any_horizon():
-    for query, platform in (("Samsung TV", "amazon"), ("product 12345", "cdiscount")):
+    for query, platform in (("Samsung TV", "amazon"), ("product 12345", "walmart")):
         for days in (30, 180, 365, 730):
             data = generate_platform_data(query, platform, days=days)
             prices = [p.price for p in data.price_history]
@@ -38,7 +38,7 @@ def test_adapter_fetch_returns_platform_data():
 
 
 def test_get_adapters_default_and_unknown():
-    assert {a.name for a in get_adapters(None)} == {"amazon", "cdiscount", "fnac"}
-    assert [a.name for a in get_adapters(["fnac"])] == ["fnac"]
+    assert {a.name for a in get_adapters(None)} == {"amazon", "walmart", "bestbuy"}
+    assert [a.name for a in get_adapters(["bestbuy"])] == ["bestbuy"]
     with pytest.raises(ValueError, match="unknown platform"):
         get_adapters(["ebay"])

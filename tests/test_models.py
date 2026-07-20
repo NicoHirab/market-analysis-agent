@@ -21,10 +21,10 @@ def _platform(name: str) -> PlatformData:
 
 
 def test_collected_data_aggregates_across_platforms():
-    c = CollectedData(query="x", platforms=[_platform("amazon"), _platform("fnac")])
+    c = CollectedData(query="x", platforms=[_platform("amazon"), _platform("bestbuy")])
     assert len(c.all_offers()) == 2
     assert len(c.all_reviews()) == 2
-    assert {o.platform for o in c.all_offers()} == {"amazon", "fnac"}
+    assert {o.platform for o in c.all_offers()} == {"amazon", "bestbuy"}
 
 
 def test_field_bounds_rejected():

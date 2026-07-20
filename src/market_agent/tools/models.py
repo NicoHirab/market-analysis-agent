@@ -14,7 +14,7 @@ class Offer(BaseModel):
     platform: str
     title: str
     price: float = Field(gt=0)
-    currency: str = "EUR"
+    currency: str = "CAD"
     rating: float | None = Field(default=None, ge=1, le=5)
     review_count: int = Field(ge=0)
     url: str

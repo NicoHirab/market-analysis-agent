@@ -43,19 +43,19 @@ async def test_planner_produces_plan_and_usage():
 
 async def test_planner_respects_explicit_constraints():
     update = await _nodes().planner(
-        _state(requested_analyses=["trends"], requested_platforms=["fnac"])
+        _state(requested_analyses=["trends"], requested_platforms=["bestbuy"])
     )
     assert update["plan"].analyses == ["trends"]
-    assert update["plan"].platforms == ["fnac"]
+    assert update["plan"].platforms == ["bestbuy"]
 
 
 async def test_collect_aggregates_planned_platforms():
     state = _state(
-        plan=AnalysisPlan(analyses=["trends"], platforms=["amazon", "fnac"], rationale="r")
+        plan=AnalysisPlan(analyses=["trends"], platforms=["amazon", "bestbuy"], rationale="r")
     )
     update = await _nodes().collect(state)
     collected = update["collected"]
-    assert {p.platform for p in collected.platforms} == {"amazon", "fnac"}
+    assert {p.platform for p in collected.platforms} == {"amazon", "bestbuy"}
     assert update.get("errors", []) == []
 
 
@@ -68,11 +68,11 @@ class _BoomAdapter(PlatformAdapter):
 
 async def test_collect_partial_failure_degrades_not_crashes():
     def factory(platforms):
-        return [_BoomAdapter(), *get_adapters(["fnac"])]
+        return [_BoomAdapter(), *get_adapters(["bestbuy"])]
 
-    state = _state(plan=AnalysisPlan(analyses=[], platforms=["amazon", "fnac"], rationale="r"))
+    state = _state(plan=AnalysisPlan(analyses=[], platforms=["amazon", "bestbuy"], rationale="r"))
     update = await _nodes(adapters_factory=factory).collect(state)
-    assert {p.platform for p in update["collected"].platforms} == {"fnac"}
+    assert {p.platform for p in update["collected"].platforms} == {"bestbuy"}
     assert update["errors"][0].code == ErrorCode.ADAPTER_FAILURE
     assert update["errors"][0].source == "amazon"
 
@@ -90,7 +90,7 @@ async def test_collect_total_failure_yields_none_and_errors():
 def _collected(query: str = "iPhone 16") -> CollectedData:
     return CollectedData(
         query=query,
-        platforms=[generate_platform_data(query, p) for p in ("amazon", "fnac")],
+        platforms=[generate_platform_data(query, p) for p in ("amazon", "bestbuy")],
     )
 
 
@@ -120,8 +120,8 @@ async def test_synthesize_produces_report_with_caveats_when_degraded():
         collected=_collected(),
         sentiment=None,
         trends=None,
-        errors=[AnalysisError(code=ErrorCode.ADAPTER_FAILURE, source="cdiscount", message="down")],
-        plan=AnalysisPlan(analyses=["sentiment"], platforms=["amazon", "fnac"], rationale="r"),
+        errors=[AnalysisError(code=ErrorCode.ADAPTER_FAILURE, source="walmart", message="down")],
+        plan=AnalysisPlan(analyses=["sentiment"], platforms=["amazon", "bestbuy"], rationale="r"),
     )
     update = await _nodes().synthesize(state)
     report = update["report"]

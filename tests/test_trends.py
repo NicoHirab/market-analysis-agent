@@ -34,11 +34,11 @@ def test_stable_trend_and_platform_comparison():
     stats = compute_trend_stats(
         CollectedData(
             query="x",
-            platforms=[_platform("amazon", flat), _platform("cdiscount", cheap)],
+            platforms=[_platform("amazon", flat), _platform("walmart", cheap)],
         )
     )
     assert stats.trend_direction == "stable"
-    assert stats.cheapest_platform == "cdiscount"
+    assert stats.cheapest_platform == "walmart"
     assert stats.priciest_platform == "amazon"
     assert stats.competitor_gap_pct == pytest.approx(11.11, abs=0.1)
 

@@ -9,7 +9,7 @@ def _report() -> MarketReport:
         product="iPhone 16",
         language="fr",
         executive_summary="Résumé.",
-        price_analysis="Prix moyen 899€.",
+        price_analysis="Prix moyen 899 $ CAD.",
         sentiment_summary="Avis globalement positifs.",
         trend_summary=None,
         recommendations=[

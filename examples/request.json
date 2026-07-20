@@ -1,6 +1,6 @@
 {
   "product": "iPhone 16",
-  "platforms": ["amazon", "cdiscount", "fnac"],
+  "platforms": ["amazon", "bestbuy", "walmart"],
   "analyses": "auto",
   "language": "fr"
 }

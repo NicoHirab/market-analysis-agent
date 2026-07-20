@@ -26,7 +26,7 @@ Test technique « Développeur IA — Agent d'analyse de marché e-commerce ». 
 Étant donné un nom de produit (« iPhone 16 », « PS5 », « Dyson V15 »...), l'agent :
 
 1. **planifie** l'analyse — complète par défaut (toutes les analyses, toutes les plateformes), restreignable via le champ `analyses` de l'API ;
-2. **collecte** des données multi-plateformes (Amazon, Cdiscount, Fnac — trois adaptateurs mockés, données déterministes et réalistes) ;
+2. **collecte** des données multi-plateformes (Amazon, Best Buy, Walmart — trois adaptateurs mockés, données déterministes et réalistes, prix en $ CAD) ;
 3. **analyse en parallèle** le sentiment client (LLM) et les tendances de prix (statistiques pures + interprétation LLM) ;
 4. **synthétise** un rapport métier structuré (résumé, analyse prix, recommandations priorisées, niveau de confiance) ;
 5. **fait relire** ce rapport par un second LLM jouant le rôle de contrôle qualité, avec une boucle de révision bornée à une seule itération.
@@ -206,21 +206,21 @@ Un exemple de requête (`examples/request.json`), le rapport Markdown correspond
 # Rapport d'analyse de marché — iPhone 16
 
 ## Synthèse
-Analyse de marché pour iPhone 16. Prix moyen constaté : 780.92€. Position concurrentielle favorable.
+Analyse de marché pour iPhone 16. Prix moyen constaté : 786.46 $ CAD. Position concurrentielle favorable.
 
 ## Sentiment client
-Sentiment majoritairement mitigé (46% positif, 31% négatif) pour iPhone 16.
+Sentiment majoritairement positif (50% positif, 40% négatif) pour iPhone 16.
 
 ## Tendances
-Les prix sont stables sur la période, avec un écart de 20.6% entre la plateforme la moins
-chère (cdiscount) et la plus chère (fnac).
+Les prix sont en hausse sur la période, avec un écart de 17.3% entre la plateforme la moins
+chère (walmart) et la plus chère (bestbuy).
 ```
 
 ## Outils
 
 Les outils (`tools/`) sont de simples fonctions/classes Python typées, sans dépendance à LangGraph — les nœuds du graphe (`agent/nodes.py`) sont de fins wrappers qui les appellent. Cette séparation outil (capacité) / nœud (orchestration) permet de tester chaque outil isolément et de le réutiliser hors du graphe si besoin.
 
-**1. Scraper — `tools/scraper/`.** `PlatformAdapter` est une classe abstraite avec une seule méthode : `fetch(query) -> PlatformData` (offres, avis, historique de prix, score de popularité). Trois implémentations mockées sont enregistrées dans `KNOWN_PLATFORMS` : Amazon, Cdiscount, Fnac — des plateformes françaises comme touche locale au test. Les données sont générées de façon déterministe, seedées par `(requête, plateforme)` (`tools/scraper/mock_data.py`) : n'importe quelle requête fonctionne (pas de catalogue codé en dur) et la même requête renvoie toujours les mêmes données, ce qui rend démos et tests reproductibles. **Extension vers des données réelles** (seam documentée, non implémentée) : écrire un nouvel adaptateur qui implémente `fetch()` en interrogeant une vraie source, et l'enregistrer dans `KNOWN_PLATFORMS` — aucune autre modification n'est nécessaire, ni dans `collect`, ni dans le graphe, ni dans l'API.
+**1. Scraper — `tools/scraper/`.** `PlatformAdapter` est une classe abstraite avec une seule méthode : `fetch(query) -> PlatformData` (offres, avis, historique de prix, score de popularité). Trois implémentations mockées sont enregistrées dans `KNOWN_PLATFORMS` : Amazon, Best Buy, Walmart — les grandes plateformes du marché nord-américain, prix en $ CAD. Les données sont générées de façon déterministe, seedées par `(requête, plateforme)` (`tools/scraper/mock_data.py`) : n'importe quelle requête fonctionne (pas de catalogue codé en dur) et la même requête renvoie toujours les mêmes données, ce qui rend démos et tests reproductibles. **Extension vers des données réelles** (seam documentée, non implémentée) : écrire un nouvel adaptateur qui implémente `fetch()` en interrogeant une vraie source, et l'enregistrer dans `KNOWN_PLATFORMS` — aucune autre modification n'est nécessaire, ni dans `collect`, ni dans le graphe, ni dans l'API.
 
 **2. Analyseur de sentiment — `tools/sentiment.py`.** Un prompt unique et ciblé (`analyze_sentiment`) qui instruit le LLM de ne jamais inventer un point positif ou négatif non ancré dans les avis fournis, et de répondre dans la langue demandée. Sortie structurée (`SentimentInsights`) : distribution positif/neutre/négatif, points forts et points faibles récurrents, thèmes, 2-3 citations représentatives, résumé en une phrase. Une liste d'avis vide lève une erreur explicite, remontée par le nœud `sentiment` comme dégradation plutôt que comme crash.
 

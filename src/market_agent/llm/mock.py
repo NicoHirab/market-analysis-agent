@@ -69,7 +69,7 @@ def _build_market_report(context: dict[str, Any]) -> MarketReport:
     ]
     summary = (
         f"Analyse de marché pour {query}. "
-        + (f"Prix moyen constaté : {avg:.2f}€. " if isinstance(avg, int | float) else "")
+        + (f"Prix moyen constaté : {avg:.2f} $ CAD. " if isinstance(avg, int | float) else "")
         + f"Position concurrentielle {'favorable' if rng.random() > 0.4 else 'à consolider'}."
     )
     if critique:
@@ -97,7 +97,7 @@ def _build_analysis_plan(context: dict[str, Any]) -> BaseModel:
         analyses = [a for a in requested if a in ("sentiment", "trends")]
     else:
         analyses = ["sentiment", "trends"]  # product name in → complete analysis by default
-    platforms = context.get("requested_platforms") or ["amazon", "cdiscount", "fnac"]
+    platforms = context.get("requested_platforms") or ["amazon", "bestbuy", "walmart"]
     return AnalysisPlan(
         analyses=analyses,
         platforms=list(platforms),

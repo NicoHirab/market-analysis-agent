@@ -1,25 +1,25 @@
 {
-  "id": "b86d77a037f64591872a2447ec510ef9",
+  "id": "de886bb38a474dbea6b7893bbb01b30d",
   "status": "done",
-  "created_at": "2026-07-20T22:29:25.289107Z",
+  "created_at": "2026-07-20T22:48:39.373154Z",
   "request": {
     "product": "iPhone 16",
     "language": "fr",
     "analyses": null,
     "platforms": [
       "amazon",
-      "cdiscount",
-      "fnac"
+      "bestbuy",
+      "walmart"
     ]
   },
   "result": {
     "report": {
       "product": "iPhone 16",
       "language": "fr",
-      "executive_summary": "Analyse de march\u00e9 pour iPhone 16. Prix moyen constat\u00e9 : 780.92\u20ac. Position concurrentielle favorable.",
+      "executive_summary": "Analyse de march\u00e9 pour iPhone 16. Prix moyen constat\u00e9 : 786.46 $ CAD. Position concurrentielle favorable.",
       "price_analysis": "Analyse des prix multi-plateformes effectu\u00e9e.",
-      "sentiment_summary": "Sentiment majoritairement mitig\u00e9 (46% positif, 31% n\u00e9gatif) pour iPhone 16.",
-      "trend_summary": "Les prix sont stables sur la p\u00e9riode, avec un \u00e9cart de 20.6% entre la plateforme la moins ch\u00e8re (cdiscount) et la plus ch\u00e8re (fnac).",
+      "sentiment_summary": "Sentiment majoritairement positif (50% positif, 40% n\u00e9gatif) pour iPhone 16.",
+      "trend_summary": "Les prix sont en hausse sur la p\u00e9riode, avec un \u00e9cart de 17.3% entre la plateforme la moins ch\u00e8re (walmart) et la plus ch\u00e8re (bestbuy).",
       "recommendations": [
         {
           "title": "Ajuster le positionnement prix de iPhone 16",
@@ -35,7 +35,7 @@
       "confidence": 0.85,
       "caveats": []
     },
-    "report_markdown": "# Rapport d'analyse de march\u00e9 \u2014 iPhone 16\n\n## Synth\u00e8se\nAnalyse de march\u00e9 pour iPhone 16. Prix moyen constat\u00e9 : 780.92\u20ac. Position concurrentielle favorable.\n\n## Analyse des prix\nAnalyse des prix multi-plateformes effectu\u00e9e.\n\n## Sentiment client\nSentiment majoritairement mitig\u00e9 (46% positif, 31% n\u00e9gatif) pour iPhone 16.\n\n## Tendances\nLes prix sont stables sur la p\u00e9riode, avec un \u00e9cart de 20.6% entre la plateforme la moins ch\u00e8re (cdiscount) et la plus ch\u00e8re (fnac).\n\n## Recommandations\n- **Ajuster le positionnement prix de iPhone 16** (priorit\u00e9 : Haute) \u2014 L'\u00e9cart constat\u00e9 entre plateformes laisse une marge de man\u0153uvre tarifaire.\n- **Surveiller les avis n\u00e9gatifs r\u00e9currents** (priorit\u00e9 : Moyenne) \u2014 Les th\u00e8mes de plaintes identifi\u00e9s sont adressables \u00e0 court terme.\n\n_Indice de confiance : 85%_\n",
+    "report_markdown": "# Rapport d'analyse de march\u00e9 \u2014 iPhone 16\n\n## Synth\u00e8se\nAnalyse de march\u00e9 pour iPhone 16. Prix moyen constat\u00e9 : 786.46 $ CAD. Position concurrentielle favorable.\n\n## Analyse des prix\nAnalyse des prix multi-plateformes effectu\u00e9e.\n\n## Sentiment client\nSentiment majoritairement positif (50% positif, 40% n\u00e9gatif) pour iPhone 16.\n\n## Tendances\nLes prix sont en hausse sur la p\u00e9riode, avec un \u00e9cart de 17.3% entre la plateforme la moins ch\u00e8re (walmart) et la plus ch\u00e8re (bestbuy).\n\n## Recommandations\n- **Ajuster le positionnement prix de iPhone 16** (priorit\u00e9 : Haute) \u2014 L'\u00e9cart constat\u00e9 entre plateformes laisse une marge de man\u0153uvre tarifaire.\n- **Surveiller les avis n\u00e9gatifs r\u00e9currents** (priorit\u00e9 : Moyenne) \u2014 Les th\u00e8mes de plaintes identifi\u00e9s sont adressables \u00e0 court terme.\n\n_Indice de confiance : 85%_\n",
     "plan": {
       "analyses": [
         "sentiment",
@@ -43,8 +43,8 @@
       ],
       "platforms": [
         "amazon",
-        "cdiscount",
-        "fnac"
+        "bestbuy",
+        "walmart"
       ],
       "rationale": "Mock plan: complete analysis unless constrained (['sentiment', 'trends'])."
     },
@@ -58,9 +58,9 @@
   "meta": {
     "provider": "mock",
     "model": "mock",
-    "duration_ms": 8,
+    "duration_ms": 9,
     "llm_calls": 5,
-    "input_tokens": 1466,
+    "input_tokens": 1560,
     "output_tokens": 320,
     "judge_score": 0.85,
     "revised": false,
