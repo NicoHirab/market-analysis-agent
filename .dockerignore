@@ -1,0 +1,23 @@
+# Keep the build context minimal and secret-free. The Dockerfile only copies
+# pyproject.toml, uv.lock and src/, so nothing below is needed in the image;
+# excluding it also keeps local secrets (.env) and VCS data off the daemon.
+.git
+.gitignore
+.dockerignore
+.venv
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.env
+.env.example
+.superpowers
+docs
+tests
+scripts
+examples
+Makefile
+*.md
+.DS_Store
+dist
+*.egg-info
