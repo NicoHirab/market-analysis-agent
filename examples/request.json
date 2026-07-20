@@ -1,0 +1,6 @@
+{
+  "query": "iPhone 16",
+  "platforms": ["amazon", "cdiscount", "fnac"],
+  "analyses": "auto",
+  "language": "fr"
+}
