@@ -74,6 +74,15 @@ def test_factory_openai_compatible_presets():
     assert isinstance(llm, LangChainStructuredLLM)
     base = str(llm.model.openai_api_base)
     assert "api.groq.com" in base
+    assert llm.model.max_retries == 2
+
+
+def test_factory_anthropic_native_config():
+    llm = build_structured_llm(_settings(llm_provider="anthropic", llm_api_key="k"))
+    assert isinstance(llm, LangChainStructuredLLM)
+    assert llm.model_name == "claude-haiku-4-5"  # DEFAULT_MODELS fallback
+    assert llm.model.__class__.__name__ == "ChatAnthropic"
+    assert llm.model.max_retries == 2
 
 
 def test_factory_custom_base_url_overrides():
