@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from market_agent.llm.base import LLMGenerationError, LLMUsage
 from market_agent.tools.report import MarketReport, Recommendation
+from market_agent.tools.sentiment import SentimentDistribution, SentimentInsights
 from market_agent.tools.trends import TrendInterpretation
 
 T = TypeVar("T", bound=BaseModel)
@@ -29,6 +30,23 @@ def _build_trend_interpretation(context: dict[str, Any]) -> TrendInterpretation:
             f"({context.get('cheapest_platform', 'n/a')}) et la plus chère "
             f"({context.get('priciest_platform', 'n/a')})."
         )
+    )
+
+
+def _build_sentiment_insights(context: dict[str, Any]) -> SentimentInsights:
+    pos = round(float(context.get("positive_share", 0.6)), 2)
+    neg = round(float(context.get("negative_share", 0.2)), 2)
+    neu = round(max(0.0, 1.0 - pos - neg), 2)
+    return SentimentInsights(
+        distribution=SentimentDistribution(positive=pos, neutral=neu, negative=neg),
+        top_praises=["Qualité perçue", "Rapport qualité/prix"],
+        top_complaints=["Autonomie de la batterie", "Prix jugé élevé"],
+        themes=["qualité", "prix", "livraison"],
+        representative_quotes=["Excellent produit, je recommande.", "Déçu, batterie trop faible."],
+        summary=(
+            f"Sentiment majoritairement {'positif' if pos >= 0.5 else 'mitigé'} "
+            f"({pos:.0%} positif, {neg:.0%} négatif) pour {context.get('query', 'le produit')}."
+        ),
     )
 
 
@@ -78,6 +96,7 @@ class MockStructuredLLM:
     def __init__(self) -> None:
         self._builders: dict[str, Callable[[dict[str, Any]], BaseModel]] = {
             "TrendInterpretation": _build_trend_interpretation,
+            "SentimentInsights": _build_sentiment_insights,
             "MarketReport": _build_market_report,
         }
 
