@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from market_agent.api.registry import JobRegistry, JobStatus
@@ -58,3 +60,43 @@ async def test_service_marks_failed_on_total_collection_failure():
 async def test_wait_unknown_job_raises():
     with pytest.raises(KeyError):
         await _service().wait("nope")
+
+
+async def test_service_timeout_records_typed_error_and_completes(monkeypatch):
+    svc = AnalysisService(JobRegistry(), Settings(_env_file=None, analysis_timeout_s=0.02))
+
+    async def _slow(job, initial):
+        await asyncio.sleep(1.0)
+        return {}
+
+    monkeypatch.setattr(svc, "_stream_run", _slow)
+    job = await svc.wait((await svc.start("iPhone 16")).id)
+    assert job.status == JobStatus.FAILED
+    assert job.result["errors"] and job.result["errors"][0]["code"] == "TIMEOUT"
+    assert job.meta["degraded"] is True
+    assert job.events[-1] == {"type": "analysis_completed", "status": "failed"}
+
+
+async def test_service_crash_records_error_and_completes(monkeypatch):
+    svc = _service()
+
+    async def _boom(job, initial):
+        raise RuntimeError("kaboom")
+
+    monkeypatch.setattr(svc, "_stream_run", _boom)
+    job = await svc.wait((await svc.start("iPhone 16")).id)
+    assert job.status == JobStatus.FAILED
+    assert any("kaboom" in e["message"] for e in job.result["errors"])
+    assert job.events[-1]["type"] == "analysis_completed"
+
+
+async def test_service_finalization_failure_still_completes(monkeypatch):
+    svc = _service()
+
+    def _boom_meta(state, duration_ms):
+        raise RuntimeError("meta boom")
+
+    monkeypatch.setattr(svc, "_build_meta", _boom_meta)
+    job = await svc.wait((await svc.start("iPhone 16")).id)
+    assert job.status == JobStatus.FAILED
+    assert job.events[-1]["type"] == "analysis_completed"

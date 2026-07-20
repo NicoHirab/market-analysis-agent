@@ -5,6 +5,7 @@ from market_agent.agent.graph import build_graph, make_initial_state
 from market_agent.agent.nodes import AgentNodes
 from market_agent.api.registry import Job, JobRegistry, JobStatus
 from market_agent.core.config import Settings
+from market_agent.core.errors import AnalysisError, ErrorCode
 from market_agent.core.logging import get_logger
 from market_agent.llm.factory import build_structured_llm
 from market_agent.tools.report import render_markdown
@@ -60,20 +61,67 @@ class AnalysisService:
                 self._stream_run(job, initial), timeout=self.settings.analysis_timeout_s
             )
         except TimeoutError:
-            state["errors"] = state.get("errors", [])
-        except Exception as exc:  # any orchestration crash → failed job, never unhandled
-            log.error("analysis crashed", extra={"ctx": {"job": job.id, "error": str(exc)}})
+            state.setdefault("errors", []).append(
+                AnalysisError(
+                    code=ErrorCode.TIMEOUT,
+                    source="analysis",
+                    message=f"analysis exceeded {self.settings.analysis_timeout_s:g}s timeout",
+                    recoverable=False,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 - any orchestration crash becomes a failed job
+            log.error(
+                "analysis crashed",
+                exc_info=True,
+                extra={"ctx": {"job": job.id, "error": str(exc)}},
+            )
+            state.setdefault("errors", []).append(
+                AnalysisError(
+                    code=ErrorCode.LLM_FAILURE,
+                    source="analysis",
+                    message=str(exc) or exc.__class__.__name__,
+                    recoverable=False,
+                )
+            )
+        finally:
+            self._finalize(job, state, started)
 
+    def _finalize(self, job: Job, state: dict, started: float) -> None:
+        """Build result + meta and emit the terminal event. Must never raise:
+        a job must always reach a terminal state with its completion event."""
         duration_ms = int((time.monotonic() - started) * 1000)
         report = state.get("report")
-        job.result = {
-            "report": report.model_dump() if report else None,
-            "report_markdown": render_markdown(report) if report else None,
-            "plan": state["plan"].model_dump() if state.get("plan") else None,
-            "judge": state["judge"].model_dump() if state.get("judge") else None,
-            "errors": [e.model_dump() for e in state.get("errors", [])],
-        }
-        job.meta = self._build_meta(state, duration_ms)
+        try:
+            job.result = {
+                "report": report.model_dump() if report else None,
+                "report_markdown": render_markdown(report) if report else None,
+                "plan": state["plan"].model_dump() if state.get("plan") else None,
+                "judge": state["judge"].model_dump() if state.get("judge") else None,
+                "errors": [e.model_dump() for e in state.get("errors", [])],
+            }
+            job.meta = self._build_meta(state, duration_ms)
+        except Exception as exc:  # noqa: BLE001 - finalization must not strand the job
+            log.error(
+                "finalization failed",
+                exc_info=True,
+                extra={"ctx": {"job": job.id, "error": str(exc)}},
+            )
+            report = None
+            job.result = {
+                "report": None,
+                "report_markdown": None,
+                "plan": None,
+                "judge": None,
+                "errors": [
+                    {
+                        "code": "LLM_FAILURE",
+                        "source": "finalize",
+                        "message": str(exc),
+                        "recoverable": False,
+                    }
+                ],
+            }
+            job.meta = {"provider": self.settings.llm_provider, "degraded": True}
         job.status = JobStatus.DONE if report else JobStatus.FAILED
         self.registry.publish(job.id, {"type": "analysis_completed", "status": job.status.value})
 
