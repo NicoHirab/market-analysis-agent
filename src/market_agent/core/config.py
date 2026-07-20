@@ -1,0 +1,24 @@
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    llm_provider: str = "mock"
+    llm_model: str = ""
+    llm_api_key: str = ""
+    llm_base_url: str | None = None
+    llm_timeout_s: float = 60.0
+    judge_enabled: bool = True
+    judge_threshold: float = 0.7
+    analysis_timeout_s: float = 300.0
+    llm_price_in_per_mtok: float | None = None
+    llm_price_out_per_mtok: float | None = None
+    log_level: str = "INFO"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
