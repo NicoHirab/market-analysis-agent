@@ -103,9 +103,9 @@ bash scripts/demo.sh "PS5"          # ou n'importe quelle requête
 ### Option B — Local, sans Docker
 
 ```bash
-make install   # uv sync
-make run       # uvicorn --reload sur :8000
-make demo      # dans un autre terminal — identique à bash scripts/demo.sh
+uv sync                                                        # dépendances
+uv run uvicorn market_agent.api.app:app --reload --port 8000   # serveur
+bash scripts/demo.sh                                           # dans un autre terminal
 ```
 
 ### Passer à un vrai fournisseur LLM
@@ -114,7 +114,7 @@ make demo      # dans un autre terminal — identique à bash scripts/demo.sh
 cp .env.example .env
 ```
 
-Décommenter le bloc du fournisseur voulu (Groq, DeepSeek, OpenRouter, OpenAI, Anthropic, Ollama en local, ou tout endpoint OpenAI-compatible via `LLM_BASE_URL`) et renseigner `LLM_API_KEY`. `make run` recharge `.env` automatiquement (`pydantic-settings`) ; avec Docker, exportez les mêmes variables avant `docker compose up`, ou déposez-les dans `.env` — Compose le charge nativement pour l'interpolation `${...}` du `docker-compose.yml`.
+Décommenter le bloc du fournisseur voulu (Groq, DeepSeek, OpenRouter, OpenAI, Anthropic, Ollama en local, ou tout endpoint OpenAI-compatible via `LLM_BASE_URL`) et renseigner `LLM_API_KEY`. Le serveur recharge `.env` automatiquement au démarrage (`pydantic-settings`) ; avec Docker, exportez les mêmes variables avant `docker compose up`, ou déposez-les dans `.env` — Compose le charge nativement pour l'interpolation `${...}` du `docker-compose.yml`.
 
 ### Configuration complète
 
@@ -231,7 +231,7 @@ Les outils (`tools/`) sont de simples fonctions/classes Python typées, sans dé
 ## Tests
 
 ```bash
-make test        # uv run pytest -q
+uv run pytest -q
 ```
 
 64 tests, tous hors-ligne et déterministes — aucun appel réseau, aucun coût, environ 2 secondes d'exécution totale. Le seam `StructuredLLM` (provider `mock`) alimente tout appel LLM pendant les tests exactement comme il alimente la démo zéro-clé ; les adaptateurs `scraper` mockés jouent le même rôle côté données. `pytest-asyncio` tourne en mode `auto`.
@@ -250,7 +250,7 @@ make test        # uv run pytest -q
 | `test_models.py` | 2 | Bornes de validation des modèles de domaine |
 | `test_sentiment.py` | 2 | Extraction sur avis scriptés, garde sur liste vide |
 
-`make lint` (`ruff check` + `ruff format --check`) est propre sur `src` et `tests`.
+`uv run ruff check` et `uv run ruff format --check` sont propres sur `src` et `tests`.
 
 ## Étape 4 — Architecture de données et stockage
 
@@ -346,4 +346,4 @@ Le principal obstacle à ce déploiement, dans le code actuel, est que tout l'é
 
 ---
 
-Vérifié le 20 juillet 2026 sur la branche `feat/market-analysis-agent` : `make test` (64 tests), `make lint`, `docker compose up --build` et `bash scripts/demo.sh` exécutés avec succès avant commit.
+Vérifié le 20 juillet 2026 : `uv run pytest -q` (64 tests), `ruff check` + `ruff format --check`, `docker compose up --build` et `bash scripts/demo.sh` exécutés avec succès avant commit.

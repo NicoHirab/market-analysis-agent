@@ -4,7 +4,7 @@
 **Status:** Approved (pending user review of this document)
 **Context:** Technical test "Développeur IA — Agent d'analyse de marché e-commerce". Coding scope = steps 1–3 (architecture, tools, tests); steps 4–7 are theory questions answered in the README. Evaluation: agent architecture 25%, code quality 25%, LLM integration 25%, innovation/extensibility 25%.
 
-> **Amendment (2026-07-20):** After the initial build, SSE progress streaming and LLM cost estimation were removed to keep the MVP lean — clarity over surface area. The async job model (`202` + polling, plus a `?wait=true` sync convenience) is unchanged; progress is followed by polling `GET /{id}`. The API input was likewise narrowed from a free-form `query` to a `product` field (product name only): the planner always plans the complete analysis, and the `analyses` request field is the sole narrowing mechanism. The **README reflects the shipped system**; this document records the original design and is kept as-is below.
+> **Amendment (2026-07-20):** After the initial build, SSE progress streaming and LLM cost estimation were removed to keep the MVP lean — clarity over surface area. The async job model (`202` + polling, plus a `?wait=true` sync convenience) is unchanged; progress is followed by polling `GET /{id}`. The API input was likewise narrowed from a free-form `query` to a `product` field (product name only): the planner always plans the complete analysis, and the `analyses` request field is the sole narrowing mechanism. The Makefile command menu was dropped too — the README documents the raw `uv`/`docker` commands directly. The **README reflects the shipped system**; this document records the original design and is kept as-is below.
 
 ## 1. Goal
 
