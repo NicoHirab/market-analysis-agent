@@ -23,3 +23,27 @@ def test_analysis_error_serializes():
     e = AnalysisError(code=ErrorCode.ADAPTER_FAILURE, source="amazon", message="boom")
     assert e.model_dump()["code"] == "ADAPTER_FAILURE"
     assert e.recoverable is True
+
+
+def test_env_file_loading(tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("LLM_PROVIDER=deepseek\nLLM_MODEL=deepseek-chat\n")
+    s = Settings(_env_file=env)
+    assert s.llm_provider == "deepseek"
+    assert s.llm_model == "deepseek-chat"
+
+
+def test_json_logging_emits_parseable_lines_with_context(capsys):
+    import json
+    import logging as stdlib_logging
+
+    from market_agent.core.logging import get_logger, setup_logging
+
+    setup_logging("INFO")
+    get_logger("t").info("hello", extra={"ctx": {"analysis_id": "abc"}})
+    stdlib_logging.getLogger().handlers = []  # detach from captured stdout
+    line = capsys.readouterr().out.strip().splitlines()[-1]
+    payload = json.loads(line)
+    assert payload["message"] == "hello"
+    assert payload["analysis_id"] == "abc"
+    assert payload["level"] == "INFO"
