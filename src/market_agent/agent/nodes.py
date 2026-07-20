@@ -21,16 +21,17 @@ log = get_logger(__name__)
 
 PLANNER_SYSTEM = (
     "You are the planning module of an e-commerce market-analysis agent. "
-    "Given a user request, decide which analyses are relevant and on which platforms. "
-    "Available analyses: 'sentiment' (customer review insights), 'trends' (price/popularity "
-    "statistics). Available platforms: {platforms}. "
-    "Request only what the user's question needs. Explain your choice briefly."
+    "The request is usually just a product name: in that case plan the COMPLETE "
+    "analysis — every available analysis, on all platforms. Only omit an analysis "
+    "when the request explicitly narrows the scope (e.g. 'compare prices' needs "
+    "only 'trends') or when a constraint pins it. "
+    "Available analyses: 'sentiment' (customer review insights), 'trends' "
+    "(price/popularity statistics). Available platforms: {platforms}. "
+    "Explain your choice briefly."
 )
 
 PLANNER_USER_TEMPLATE = (
-    "User request: {query}\n"
-    "Constraints: analyses={requested_analyses}, platforms={requested_platforms}\n"
-    "If a constraint is not null you MUST respect it exactly; plan the rest yourself."
+    "User request: {query}\nCaller constraints: {constraints}\nProduce the analysis plan."
 )
 
 SYNTHESIS_SYSTEM = (
@@ -76,14 +77,18 @@ class AgentNodes:
     async def planner(self, state: AnalysisState) -> dict:
         requested_analyses = state.get("requested_analyses")
         requested_platforms = state.get("requested_platforms")
+        # Only mention constraints that exist: rendering Python's `None` into the
+        # prompt reads as "no analyses requested" to some models.
+        parts = []
+        if requested_analyses is not None:
+            parts.append(f"analyses MUST be exactly {list(requested_analyses)}")
+        if requested_platforms:
+            parts.append(f"platforms MUST be exactly {list(requested_platforms)}")
+        constraints = "; ".join(parts) or "none — apply the default policy (complete analysis)"
         plan, usage = await self.llm.generate(
             AnalysisPlan,
             system=PLANNER_SYSTEM.format(platforms=", ".join(KNOWN_PLATFORMS)),
-            user=PLANNER_USER_TEMPLATE.format(
-                query=state["query"],
-                requested_analyses=requested_analyses,
-                requested_platforms=requested_platforms,
-            ),
+            user=PLANNER_USER_TEMPLATE.format(query=state["query"], constraints=constraints),
             context={
                 "query": state["query"],
                 "requested_analyses": requested_analyses,
