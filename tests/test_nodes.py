@@ -1,10 +1,13 @@
 from market_agent.agent.nodes import AgentNodes
-from market_agent.agent.state import AnalysisPlan, AnalysisState
+from market_agent.agent.state import AnalysisPlan, AnalysisState, JudgeVerdict
 from market_agent.core.config import Settings
 from market_agent.core.errors import ErrorCode
 from market_agent.llm.mock import MockStructuredLLM
+from market_agent.tools.models import CollectedData
+from market_agent.tools.report import MarketReport
 from market_agent.tools.scraper.adapters import get_adapters
 from market_agent.tools.scraper.base import AdapterError, PlatformAdapter
+from market_agent.tools.scraper.mock_data import generate_platform_data
 
 
 def _nodes(**kw) -> AgentNodes:
@@ -82,3 +85,66 @@ async def test_collect_total_failure_yields_none_and_errors():
     update = await _nodes(adapters_factory=factory).collect(state)
     assert update["collected"] is None
     assert len(update["errors"]) == 1
+
+
+def _collected(query: str = "iPhone 16") -> CollectedData:
+    return CollectedData(
+        query=query,
+        platforms=[generate_platform_data(query, p) for p in ("amazon", "fnac")],
+    )
+
+
+async def test_sentiment_node_produces_insights():
+    update = await _nodes().sentiment(_state(collected=_collected()))
+    assert update["sentiment"] is not None
+    assert update["usage"][0].purpose == "sentiment"
+
+
+async def test_sentiment_node_degrades_on_empty_reviews():
+    empty = CollectedData(query="x", platforms=[])
+    update = await _nodes().sentiment(_state(collected=empty))
+    assert update["sentiment"] is None
+    assert update["errors"][0].source == "sentiment"
+
+
+async def test_trends_node_produces_insights():
+    update = await _nodes().trends(_state(collected=_collected()))
+    assert update["trends"].stats.avg_price > 0
+    assert update["trends"].interpretation
+
+
+async def test_synthesize_produces_report_with_caveats_when_degraded():
+    from market_agent.core.errors import AnalysisError, ErrorCode
+
+    state = _state(
+        collected=_collected(),
+        sentiment=None,
+        trends=None,
+        errors=[AnalysisError(code=ErrorCode.ADAPTER_FAILURE, source="cdiscount", message="down")],
+        plan=AnalysisPlan(analyses=["sentiment"], platforms=["amazon", "fnac"], rationale="r"),
+    )
+    update = await _nodes().synthesize(state)
+    report = update["report"]
+    assert isinstance(report, MarketReport)
+    assert report.caveats  # degraded sources surfaced
+    assert update["revision_count"] == 1
+
+
+async def test_judge_passes_normal_report():
+    state = _state(report=_mock_report(), revision_count=1)
+    update = await _nodes().judge(state)
+    assert isinstance(update["judge"], JudgeVerdict)
+    assert update["judge"].passed is True
+
+
+async def test_judge_fails_then_flags_revision():
+    state = _state(query="iPhone 16 force-revision", report=_mock_report(), revision_count=1)
+    update = await _nodes().judge(state)
+    assert update["judge"].passed is False
+    assert update["judge"].critique
+
+
+def _mock_report() -> MarketReport:
+    return MarketReport(
+        product="iPhone 16", executive_summary="s", price_analysis="p", confidence=0.8
+    )

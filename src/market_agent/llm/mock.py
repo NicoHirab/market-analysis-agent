@@ -110,6 +110,32 @@ def _build_analysis_plan(context: dict[str, Any]) -> BaseModel:
     )
 
 
+def _build_judge_verdict(context: dict[str, Any]) -> BaseModel:
+    from market_agent.agent.state import JudgeVerdict
+
+    threshold = float(context.get("threshold", 0.7))
+    revisions_done = int(context.get("revision_count", 0))
+    force = "force-revision" in str(context.get("query", "")).lower()
+    if force and revisions_done == 0:
+        score = 0.4
+    elif revisions_done > 0:
+        score = 0.9
+    else:
+        score = 0.85
+    return JudgeVerdict(
+        score=score,
+        passed=score >= threshold,
+        critique=(
+            ""
+            if score >= threshold
+            else (
+                "Le rapport manque de précision chiffrée ; ancrer chaque affirmation "
+                "dans les données."
+            )
+        ),
+    )
+
+
 class MockStructuredLLM:
     """Deterministic, schema-dispatched fake LLM. Registered builders map
     schema type -> callable(context) -> instance."""
@@ -121,6 +147,7 @@ class MockStructuredLLM:
             "MarketReport": _build_market_report,
         }
         self._builders["AnalysisPlan"] = _build_analysis_plan
+        self._builders["JudgeVerdict"] = _build_judge_verdict
 
     def register(self, schema_name: str, builder: Callable[[dict[str, Any]], BaseModel]) -> None:
         self._builders[schema_name] = builder
