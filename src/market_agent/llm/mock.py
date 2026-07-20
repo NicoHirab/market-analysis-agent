@@ -89,6 +89,26 @@ def _build_market_report(context: dict[str, Any]) -> MarketReport:
     )
 
 
+def _build_analysis_plan(context: dict[str, Any]) -> BaseModel:
+    from market_agent.agent.state import AnalysisPlan
+
+    query = str(context.get("query", "")).lower()
+    requested = context.get("requested_analyses")
+    if requested is not None:
+        analyses = [a for a in requested if a in ("sentiment", "trends")]
+    else:
+        analyses = ["sentiment", "trends"]
+        if any(w in query for w in ("prix", "price", "comparer", "compare")) and not any(
+            w in query for w in ("avis", "review", "sentiment", "client")
+        ):
+            analyses = ["trends"]
+    platforms = context.get("requested_platforms") or ["amazon", "cdiscount", "fnac"]
+    return AnalysisPlan(
+        analyses=analyses, platforms=list(platforms),
+        rationale=f"Mock plan derived from query keywords: {analyses}.",
+    )
+
+
 class MockStructuredLLM:
     """Deterministic, schema-dispatched fake LLM. Registered builders map
     schema type -> callable(context) -> instance."""
@@ -99,6 +119,7 @@ class MockStructuredLLM:
             "SentimentInsights": _build_sentiment_insights,
             "MarketReport": _build_market_report,
         }
+        self._builders["AnalysisPlan"] = _build_analysis_plan
 
     def register(self, schema_name: str, builder: Callable[[dict[str, Any]], BaseModel]) -> None:
         self._builders[schema_name] = builder
