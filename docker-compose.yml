@@ -3,8 +3,14 @@ services:
     build: .
     ports:
       - "8000:8000"
-    env_file:
-      - path: .env
-        required: false
+    # Zero-config: LLM_PROVIDER defaults to "mock", so `docker compose up` runs
+    # with no API key. For a real provider, copy .env.example to .env and set the
+    # vars — Compose auto-loads .env for ${...} interpolation on every v2 release,
+    # which avoids the 2.24+-only long-form `env_file` syntax.
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      JUDGE_ENABLED: ${JUDGE_ENABLED:-true}
+      JUDGE_THRESHOLD: ${JUDGE_THRESHOLD:-0.7}
