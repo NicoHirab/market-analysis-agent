@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from market_agent.tools.report import MarketReport, Recommendation, render_markdown
 
 
@@ -27,7 +30,10 @@ def test_render_markdown_contains_sections_and_caveats():
 
 
 def test_confidence_bounds_enforced():
-    import pytest
-
     with pytest.raises(ValueError):
         MarketReport.model_validate({**_report().model_dump(), "confidence": 1.5})
+
+
+def test_invalid_priority_rejected():
+    with pytest.raises(ValidationError):
+        Recommendation.model_validate({"title": "t", "rationale": "r", "priority": "urgent"})
