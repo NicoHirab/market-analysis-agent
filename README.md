@@ -98,7 +98,7 @@ bash scripts/demo.sh                # utilise "iPhone 16" par défaut
 bash scripts/demo.sh "PS5"          # ou n'importe quelle requête
 ```
 
-`demo.sh` enchaîne un health-check, soumet une analyse, interroge le statut jusqu'à complétion, puis imprime le rapport Markdown et les métadonnées (tokens, score du juge). Le fournisseur par défaut (`LLM_PROVIDER=mock`, voir `docker-compose.yml`) est un simulateur déterministe : aucune clé API, aucun appel réseau sortant, résultat reproductible pour n'importe quelle requête.
+`demo.sh` enchaîne un health-check, soumet une analyse, interroge le statut jusqu'à complétion, puis imprime le rapport Markdown et les métadonnées (tokens, score du juge). Chaque analyse terminée est aussi **archivée localement** dans `runs/<horodatage>-<produit>-<id>/` (`analysis.json` + `report.md`) — avec Docker, le volume monté rend ces artefacts visibles sur la machine hôte. Le fournisseur par défaut (`LLM_PROVIDER=mock`, voir `docker-compose.yml`) est un simulateur déterministe : aucune clé API, aucun appel réseau sortant, résultat reproductible pour n'importe quelle requête.
 
 ### Option B — Local, sans Docker
 
@@ -130,6 +130,7 @@ Toutes les variables sont lues par `Settings` (`core/config.py`, `pydantic-setti
 | `JUDGE_ENABLED` | `true` | passe à `false` pour sauter le nœud `judge` et sa boucle de révision |
 | `JUDGE_THRESHOLD` | `0.7` | score minimal pour qu'un rapport soit accepté sans révision |
 | `ANALYSIS_TIMEOUT_S` | `300` | timeout global par analyse (couvre tout le graphe) |
+| `RUNS_DIR` | `runs` | dossier d'archivage local des analyses terminées (`analysis.json` + `report.md`) ; vide pour désactiver |
 | `LOG_LEVEL` | `INFO` | niveau du logger racine (JSON structuré, voir étape 5) |
 
 ## Choix techniques et justifications
@@ -265,7 +266,7 @@ Aujourd'hui, la persistance est un `JobRegistry` en mémoire (`api/registry.py`)
 
 **Redis pour deux besoins que Postgres sert mal** : une file de jobs, remplaçant le `asyncio.create_task` in-process actuel de `AnalysisService` par un vrai découplage soumission/exécution — condition nécessaire au scaling horizontal de l'étape 6 —, et un cache chaud (le TTL de `collected_data_cache` est un cas d'usage naturel de clé Redis avec expiration, moins coûteux qu'un scan de ligne Postgres pour une donnée lue bien plus souvent qu'écrite).
 
-**Fichiers/objet (S3 ou équivalent)** pour les rapports rendus. Aujourd'hui, `render_markdown()` recalcule le Markdown à la demande depuis le JSON stocké ; à l'échelle, écrire une fois l'artefact rendu (`.md`, éventuellement `.pdf`) et le servir statiquement évite de le régénérer à chaque lecture et prépare un futur lien de partage public.
+**Fichiers/objet (S3 ou équivalent)** pour les rapports rendus. L'embryon local existe déjà : chaque analyse terminée est archivée sur disque (`RUNS_DIR`, défaut `runs/` — ressource JSON complète + rapport Markdown, écriture non-fatale en cas d'échec). À l'échelle, ces artefacts partent vers un stockage objet et sont servis statiquement — on évite de régénérer le rendu à chaque lecture et on prépare un futur lien de partage public.
 
 **Pourquoi pas une seule base « à tout faire »** (Mongo seul, Redis seul) ? `analyses` a besoin de garanties relationnelles réelles (clé étrangère depuis `analysis_events`, transitions de statut transactionnelles) et de requêtes analytiques ad hoc que seul SQL + JSONB offre sans sacrifier la flexibilité du schéma. Redis, à l'inverse, est volontairement cantonné à la file et au cache — rien n'y vit de façon durable, pour qu'un flush Redis ne soit jamais un incident de perte de données.
 
@@ -337,7 +338,7 @@ Le principal obstacle à ce déploiement, dans le code actuel, est que tout l'é
 ## Limites connues et évolutions
 
 - **Données mockées** — pas de scraping réel (fragilité et conditions d'utilisation des marketplaces). La seam `PlatformAdapter` est documentée et prête pour un vrai adaptateur (section Outils), mais aucun n'est branché.
-- **Registre de jobs en mémoire** — mono-processus, état perdu au redémarrage, ne scale pas horizontalement. L'upgrade Postgres/Redis est argumentée à l'étape 4.
+- **Registre de jobs en mémoire** — mono-processus, ne scale pas horizontalement ; le statut interrogeable via l'API repart de zéro au redémarrage (les artefacts des analyses, eux, survivent dans `runs/`). L'upgrade Postgres/Redis est argumentée à l'étape 4.
 - **Pas d'authentification/autorisation** — l'API accepte tout appelant sans distinction. À ajouter avant tout déploiement non local (clé API ou OAuth, quotas par client — voir étape 6).
 - **Suivi de progression par polling, pas de streaming** — le suivi se fait en interrogeant `GET /{id}` jusqu'à `done`/`failed` ; le flux SSE nœud par nœud a été retiré pour garder le périmètre simple (le rejeu durable via `analysis_events` est décrit à l'étape 4).
 - **Pas de cache** — chaque requête, même identique à une précédente, rejoue tout le graphe (voir étape 6).

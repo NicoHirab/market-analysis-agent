@@ -72,6 +72,29 @@ async def test_service_crash_records_error(monkeypatch):
     assert any("kaboom" in e["message"] for e in job.result["errors"])
 
 
+async def test_service_archives_run_to_disk(tmp_path):
+    import json
+
+    runs = tmp_path / "runs"
+    svc = AnalysisService(JobRegistry(), Settings(_env_file=None, runs_dir=str(runs)))
+    await svc.wait((await svc.start("iPhone 16")).id)
+    run_dirs = list(runs.iterdir())
+    assert len(run_dirs) == 1
+    assert "iphone-16" in run_dirs[0].name
+    data = json.loads((run_dirs[0] / "analysis.json").read_text())
+    assert data["status"] == "done"
+    assert data["result"]["report"]["product"] == "iPhone 16"
+    assert (run_dirs[0] / "report.md").read_text().startswith("# Rapport")
+
+
+async def test_service_archiving_failure_is_not_fatal(tmp_path):
+    blocker = tmp_path / "blocked"
+    blocker.write_text("not a directory")  # mkdir under a file will raise
+    svc = AnalysisService(JobRegistry(), Settings(_env_file=None, runs_dir=str(blocker / "runs")))
+    job = await svc.wait((await svc.start("PS5")).id)
+    assert job.status == JobStatus.DONE  # analysis unaffected by archive failure
+
+
 async def test_service_finalization_failure_still_completes(monkeypatch):
     svc = _service()
 

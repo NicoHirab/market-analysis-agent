@@ -8,7 +8,8 @@ RUN uv sync --frozen --no-dev
 
 FROM python:3.13-slim
 WORKDIR /app
-RUN useradd --create-home appuser
+RUN useradd --create-home appuser \
+    && mkdir -p /app/runs && chown appuser:appuser /app/runs
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 COPY --from=builder --chown=appuser:appuser /app/src /app/src
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1

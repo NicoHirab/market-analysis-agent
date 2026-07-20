@@ -1,5 +1,8 @@
 import asyncio
+import json
+import re
 import time
+from pathlib import Path
 
 from market_agent.agent.graph import build_graph, make_initial_state
 from market_agent.agent.nodes import AgentNodes
@@ -126,6 +129,41 @@ class AnalysisService:
             }
             job.meta = {"provider": self.settings.llm_provider, "degraded": True}
         job.status = JobStatus.DONE if report else JobStatus.FAILED
+        self._save_run(job)
+
+    def _save_run(self, job: Job) -> None:
+        """Archive the finished run to disk (JSON resource + Markdown report).
+
+        Small files, written synchronously at the end of the run; a failure to
+        archive is logged and never fails the analysis itself."""
+        if not self.settings.runs_dir:
+            return
+        try:
+            product = str(job.request.get("product", ""))
+            slug = re.sub(r"[^a-z0-9]+", "-", product.lower()).strip("-")[:40] or "analysis"
+            stamp = job.created_at.strftime("%Y%m%d-%H%M%S")
+            run_dir = Path(self.settings.runs_dir) / f"{stamp}-{slug}-{job.id[:8]}"
+            run_dir.mkdir(parents=True, exist_ok=True)
+            resource = {
+                "id": job.id,
+                "status": job.status.value,
+                "created_at": job.created_at.isoformat(),
+                "request": job.request,
+                "result": job.result,
+                "meta": job.meta,
+            }
+            (run_dir / "analysis.json").write_text(
+                json.dumps(resource, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            markdown = (job.result or {}).get("report_markdown")
+            if markdown:
+                (run_dir / "report.md").write_text(markdown, encoding="utf-8")
+            log.info("run archived", extra={"ctx": {"analysis_id": job.id, "path": str(run_dir)}})
+        except Exception as exc:  # noqa: BLE001 - archiving must never fail the job
+            log.warning(
+                "run archiving failed",
+                extra={"ctx": {"analysis_id": job.id, "error": str(exc)}},
+            )
 
     def _build_meta(self, state: dict, duration_ms: int) -> dict:
         usage = state.get("usage", [])

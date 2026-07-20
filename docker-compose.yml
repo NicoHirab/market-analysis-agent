@@ -3,6 +3,10 @@ services:
     build: .
     ports:
       - "8000:8000"
+    volumes:
+      # Les analyses terminées sont archivées ici (JSON + rapport Markdown) ;
+      # le bind mount les rend visibles sur la machine hôte.
+      - ./runs:/app/runs
     # Zero-config: LLM_PROVIDER defaults to "mock", so `docker compose up` runs
     # with no API key. For a real provider, copy .env.example to .env and set the
     # vars — Compose auto-loads .env for ${...} interpolation on every v2 release,
