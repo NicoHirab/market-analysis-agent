@@ -4,6 +4,8 @@
 **Status:** Approved (pending user review of this document)
 **Context:** Technical test "Développeur IA — Agent d'analyse de marché e-commerce". Coding scope = steps 1–3 (architecture, tools, tests); steps 4–7 are theory questions answered in the README. Evaluation: agent architecture 25%, code quality 25%, LLM integration 25%, innovation/extensibility 25%.
 
+> **Amendment (2026-07-20):** After the initial build, SSE progress streaming and LLM cost estimation were removed to keep the MVP lean — clarity over surface area. The async job model (`202` + polling, plus a `?wait=true` sync convenience) is unchanged; progress is followed by polling `GET /{id}`. The **README reflects the shipped system**; this document records the original design and is kept as-is below.
+
 ## 1. Goal
 
 A containerized FastAPI service exposing a market-analysis agent: given a product/market query, an LLM-planned LangGraph pipeline collects (mock) product data, analyzes sentiment and price trends in parallel, synthesizes a structured business report, and passes it through an LLM-as-judge quality gate. Runs end-to-end with **zero API keys** (mock LLM provider); any real provider is one env var away.

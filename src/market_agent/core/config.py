@@ -15,8 +15,6 @@ class Settings(BaseSettings):
     judge_enabled: bool = True
     judge_threshold: float = Field(default=0.7, ge=0, le=1)
     analysis_timeout_s: float = 300.0
-    llm_price_in_per_mtok: float | None = None
-    llm_price_out_per_mtok: float | None = None
     log_level: str = "INFO"
 
 

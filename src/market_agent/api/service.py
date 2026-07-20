@@ -47,7 +47,6 @@ class AnalysisService:
 
     async def _run(self, job: Job) -> None:
         job.status = JobStatus.RUNNING
-        self.registry.publish(job.id, {"type": "analysis_started"})
         started = time.monotonic()
         state: dict = {}
         try:
@@ -58,7 +57,7 @@ class AnalysisService:
                 platforms=job.request["platforms"],
             )
             state = await asyncio.wait_for(
-                self._stream_run(job, initial), timeout=self.settings.analysis_timeout_s
+                self._run_graph(initial), timeout=self.settings.analysis_timeout_s
             )
         except TimeoutError:
             state.setdefault("errors", []).append(
@@ -86,9 +85,13 @@ class AnalysisService:
         finally:
             self._finalize(job, state, started)
 
+    async def _run_graph(self, initial: dict) -> dict:
+        """Run the compiled graph to completion and return the final state."""
+        return await self.graph.ainvoke(initial)
+
     def _finalize(self, job: Job, state: dict, started: float) -> None:
-        """Build result + meta and emit the terminal event. Must never raise:
-        a job must always reach a terminal state with its completion event."""
+        """Build result + meta and set the terminal status. Must never raise:
+        a job must always reach a terminal state."""
         duration_ms = int((time.monotonic() - started) * 1000)
         report = state.get("report")
         try:
@@ -123,52 +126,11 @@ class AnalysisService:
             }
             job.meta = {"provider": self.settings.llm_provider, "degraded": True}
         job.status = JobStatus.DONE if report else JobStatus.FAILED
-        self.registry.publish(job.id, {"type": "analysis_completed", "status": job.status.value})
-
-    async def _stream_run(self, job: Job, initial: dict) -> dict:
-        """Stream the graph; emit node_completed events; return final state."""
-        final: dict = dict(initial)
-        last = time.monotonic()
-        async for chunk in self.graph.astream(
-            initial, stream_mode=["updates", "values"], version="v2"
-        ):
-            if chunk["type"] == "updates":
-                now = time.monotonic()
-                for node_name in chunk["data"]:
-                    elapsed_ms = int((now - last) * 1000)
-                    self.registry.publish(
-                        job.id,
-                        {"type": "node_completed", "node": node_name, "elapsed_ms": elapsed_ms},
-                    )
-                    log.info(
-                        "node completed",
-                        extra={
-                            "ctx": {
-                                "analysis_id": job.id,
-                                "node": node_name,
-                                "elapsed_ms": elapsed_ms,
-                            }
-                        },
-                    )
-                last = now
-            elif chunk["type"] == "values":
-                final = chunk["data"]
-        return final
 
     def _build_meta(self, state: dict, duration_ms: int) -> dict:
         usage = state.get("usage", [])
         input_tokens = sum(u.input_tokens for u in usage)
         output_tokens = sum(u.output_tokens for u in usage)
-        cost = None
-        if (
-            self.settings.llm_price_in_per_mtok is not None
-            and self.settings.llm_price_out_per_mtok is not None
-        ):
-            cost = round(
-                input_tokens / 1e6 * self.settings.llm_price_in_per_mtok
-                + output_tokens / 1e6 * self.settings.llm_price_out_per_mtok,
-                6,
-            )
         judge = state.get("judge")
         plan = state.get("plan")
         planned = list(plan.analyses) if plan else []
@@ -185,7 +147,6 @@ class AnalysisService:
             "llm_calls": len(usage),
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
-            "cost_estimate_usd": cost,
             "judge_score": judge.score if judge else None,
             "revised": state.get("revision_count", 0) > 1,
             "degraded": bool(state.get("errors")) or bool(missing),

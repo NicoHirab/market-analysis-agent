@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end demo: submit an analysis, stream progress, print the report.
+# End-to-end demo: submit an analysis, poll until done, print the report.
 set -euo pipefail
 BASE="${BASE_URL:-http://localhost:8000}"
 QUERY="${1:-iPhone 16}"
@@ -13,10 +13,13 @@ ID=$(curl -s -X POST "$BASE/api/v1/analyses" \
   -d "{\"query\": \"$QUERY\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 echo "analysis id: $ID"
 
-echo "── Live progress (SSE) ─────────────────"
-curl -sN "$BASE/api/v1/analyses/$ID/events" | while read -r line; do
-  echo "$line"
-  [[ "$line" == *analysis_completed* ]] && break
+echo "── Progress (polling) ──────────────────"
+for _ in $(seq 1 60); do
+  STATUS=$(curl -s "$BASE/api/v1/analyses/$ID" \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["status"])')
+  echo "status: $STATUS"
+  [[ "$STATUS" == "done" || "$STATUS" == "failed" ]] && break
+  sleep 0.5
 done
 
 echo "── Report (markdown) ───────────────────"

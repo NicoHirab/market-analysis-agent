@@ -1,15 +1,10 @@
-import json
-
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse
-from sse_starlette.sse import EventSourceResponse
 
 from market_agent.api.schemas import AnalysisResource, AnalysisSummary, AnalyzeRequest
 from market_agent.api.service import AnalysisService
 
 router = APIRouter(prefix="/api/v1")
-
-TERMINAL_EVENT = "analysis_completed"
 
 
 def _service(request: Request) -> AnalysisService:
@@ -55,25 +50,3 @@ async def get_report_markdown(analysis_id: str, request: Request):
     if not markdown:
         raise HTTPException(status_code=404, detail="report not available")
     return PlainTextResponse(markdown, media_type="text/markdown; charset=utf-8")
-
-
-@router.get("/analyses/{analysis_id}/events")
-async def stream_events(analysis_id: str, request: Request):
-    _job_or_404(request, analysis_id)
-    registry = _service(request).registry
-
-    async def event_source():
-        snapshot, queue = registry.subscribe(analysis_id)
-        try:
-            terminal_seen = False
-            for event in snapshot:
-                yield {"event": event["type"], "data": json.dumps(event)}
-                terminal_seen = terminal_seen or event["type"] == TERMINAL_EVENT
-            while not terminal_seen:
-                event = await queue.get()
-                yield {"event": event["type"], "data": json.dumps(event)}
-                terminal_seen = event["type"] == TERMINAL_EVENT
-        finally:
-            registry.unsubscribe(analysis_id, queue)
-
-    return EventSourceResponse(event_source())

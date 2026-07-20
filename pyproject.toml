@@ -12,7 +12,6 @@ dependencies = [
     "uvicorn[standard]>=0.51,<1",
     "pydantic>=2.7.4,<3",
     "pydantic-settings>=2.14,<3",
-    "sse-starlette>=3.4,<4",
 ]
 
 [dependency-groups]
