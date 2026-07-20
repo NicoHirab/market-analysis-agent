@@ -23,6 +23,8 @@ _AUTHORS = ["Marie L.", "Julien P.", "Sophie D.", "Karim B.", "Claire M.", "Anto
 # Per-platform price flavor: (multiplier, popularity bonus)
 _PLATFORM_FLAVOR = {"amazon": (1.0, 10.0), "cdiscount": (0.93, -5.0), "fnac": (1.06, 0.0)}
 
+_ANCHOR_DATE = date(2026, 7, 18)
+
 
 def _base_price(query: str) -> float:
     seed = random.Random(query.strip().lower())
@@ -62,16 +64,17 @@ def generate_platform_data(query: str, platform: str, *, days: int = 30) -> Plat
                 author=rng.choice(_AUTHORS),
                 rating=round(rating, 1),
                 text=text,
-                date=date(2026, 7, 18) - timedelta(days=rng.randint(0, 90)),
+                date=_ANCHOR_DATE - timedelta(days=rng.randint(0, 90)),
             )
         )
 
     drift = rng.uniform(-0.004, 0.004)  # daily trend
     price = center * rng.uniform(0.95, 1.05)
     history = []
-    start = date(2026, 7, 18) - timedelta(days=days - 1)
+    start = _ANCHOR_DATE - timedelta(days=days - 1)
+    floor, cap = center * 0.85, center * 1.25  # bounds keep max/min ratio < 1.5 for any horizon
     for i in range(days):
-        price = max(center * 0.7, price * (1 + drift + rng.uniform(-0.01, 0.01)))
+        price = min(cap, max(floor, price * (1 + drift + rng.uniform(-0.01, 0.01))))
         history.append(PricePoint(date=start + timedelta(days=i), price=round(price, 2)))
 
     popularity = min(100.0, max(0.0, rng.uniform(20, 90) + pop_bonus))

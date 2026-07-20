@@ -22,6 +22,15 @@ def test_generated_data_is_realistic():
     assert 0 <= data.popularity_score <= 100
 
 
+def test_price_history_bounded_for_any_horizon():
+    for query, platform in (("Samsung TV", "amazon"), ("product 12345", "cdiscount")):
+        for days in (30, 180, 365, 730):
+            data = generate_platform_data(query, platform, days=days)
+            prices = [p.price for p in data.price_history]
+            assert len(prices) == days
+            assert max(prices) / min(prices) < 1.5
+
+
 def test_adapter_fetch_returns_platform_data():
     data = MockAmazonAdapter().fetch("PS5")
     assert data.platform == "amazon"
