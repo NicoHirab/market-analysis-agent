@@ -93,3 +93,54 @@ def test_startup_fails_fast_on_missing_key():
         TestClient(create_app(Settings(_env_file=None, llm_provider="groq"))),
     ):
         pass
+
+
+async def test_sse_stream_tails_live_events_to_terminal():
+    import asyncio
+    import json
+
+    from httpx import ASGITransport, AsyncClient
+
+    from market_agent.api.registry import JobRegistry
+    from market_agent.api.service import AnalysisService
+
+    settings = Settings(_env_file=None)
+    app = create_app(settings)
+    # ASGITransport does not run lifespan, so wire app.state manually.
+    registry = JobRegistry()
+    app.state.registry = registry
+    app.state.service = AnalysisService(registry, settings)
+
+    job = registry.create({"query": "live tail"})
+    registry.publish(job.id, {"type": "analysis_started"})  # snapshot event
+
+    async def publisher():
+        await asyncio.sleep(0.05)
+        registry.publish(job.id, {"type": "node_completed", "node": "planner", "elapsed_ms": 1})
+        await asyncio.sleep(0.05)
+        registry.publish(job.id, {"type": "analysis_completed", "status": "done"})
+
+    events: list[dict] = []
+
+    async def consume():
+        transport = ASGITransport(app=app)
+        async with (
+            AsyncClient(transport=transport, base_url="http://t") as ac,
+            ac.stream("GET", f"/api/v1/analyses/{job.id}/events") as resp,
+        ):
+            assert resp.status_code == 200
+            async for line in resp.aiter_lines():
+                if line.startswith("data:"):
+                    events.append(json.loads(line[len("data:") :].strip()))
+                    if events[-1]["type"] == "analysis_completed":
+                        break
+
+    await asyncio.gather(consume(), publisher())
+
+    # "analysis_started" comes from the snapshot; the other two arrive via the
+    # live queue — proving the await-queue.get() tail loop runs and terminates.
+    assert [e["type"] for e in events] == [
+        "analysis_started",
+        "node_completed",
+        "analysis_completed",
+    ]

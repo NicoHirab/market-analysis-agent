@@ -33,6 +33,14 @@ packages = ["src/market_agent"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+filterwarnings = [
+    # fastapi.testclient re-exports starlette's TestClient, which emits a
+    # StarletteDeprecationWarning about httpx<2. Library-level, not our code;
+    # httpx2 is not in our dependency set. The message-match is a start-anchored
+    # regex; the real text has literal backticks (`httpx`, `starlette.testclient`),
+    # so those must be present for the ignore to actually take effect.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:",
+]
 
 [tool.ruff]
 line-length = 100
