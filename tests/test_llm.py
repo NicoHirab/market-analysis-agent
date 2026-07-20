@@ -1,6 +1,9 @@
 import pytest
 
+from market_agent.core.config import Settings
 from market_agent.llm.base import LLMUsage
+from market_agent.llm.factory import build_structured_llm
+from market_agent.llm.langchain_impl import LangChainStructuredLLM
 from market_agent.llm.mock import LLMGenerationError, MockStructuredLLM
 from market_agent.tools.trends import TrendInterpretation
 
@@ -54,3 +57,68 @@ async def test_mock_market_report_builder_semantics():
     )
     assert clean.confidence == 0.85
     assert clean.caveats == []
+
+
+def _settings(**kw) -> Settings:
+    return Settings(_env_file=None, **kw)
+
+
+def test_factory_mock_provider():
+    assert isinstance(build_structured_llm(_settings(llm_provider="mock")), MockStructuredLLM)
+
+
+def test_factory_openai_compatible_presets():
+    llm = build_structured_llm(
+        _settings(llm_provider="groq", llm_model="llama-3.3-70b-versatile", llm_api_key="k")
+    )
+    assert isinstance(llm, LangChainStructuredLLM)
+    base = str(llm.model.openai_api_base)
+    assert "api.groq.com" in base
+
+
+def test_factory_custom_base_url_overrides():
+    llm = build_structured_llm(
+        _settings(llm_provider="custom", llm_model="m", llm_api_key="k",
+                  llm_base_url="https://my-gateway.local/v1")
+    )
+    assert isinstance(llm, LangChainStructuredLLM)
+    assert "my-gateway.local" in str(llm.model.openai_api_base)
+
+
+def test_factory_unknown_provider_without_base_url_raises():
+    import pytest
+
+    with pytest.raises(ValueError, match="unknown LLM provider"):
+        build_structured_llm(_settings(llm_provider="nope", llm_api_key="k"))
+
+
+async def test_langchain_impl_parses_and_retries(monkeypatch):
+    """Drive LangChainStructuredLLM with a stubbed chain: first invalid, then valid."""
+    from market_agent.tools.trends import TrendInterpretation
+
+    class FakeStructuredRunnable:
+        def __init__(self):
+            self.calls = 0
+
+        async def ainvoke(self, messages):
+            self.calls += 1
+            if self.calls == 1:
+                return {"raw": _FakeRaw(), "parsed": None,
+                        "parsing_error": ValueError("bad json")}
+            return {"raw": _FakeRaw(), "parsed": TrendInterpretation(interpretation="ok"),
+                    "parsing_error": None}
+
+    class _FakeRaw:
+        usage_metadata = {"input_tokens": 10, "output_tokens": 5}
+
+    class FakeModel:
+        def with_structured_output(self, schema, include_raw=False):
+            return fake_runnable
+
+    fake_runnable = FakeStructuredRunnable()
+    impl = LangChainStructuredLLM(FakeModel(), model_name="fake-model")
+    out, usage = await impl.generate(TrendInterpretation, system="s", user="u", purpose="p")
+    assert out.interpretation == "ok"
+    assert fake_runnable.calls == 2  # retried once
+    assert usage.input_tokens == 20  # both calls counted
+    assert usage.model == "fake-model"
