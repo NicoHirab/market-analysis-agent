@@ -1,9 +1,9 @@
 {
-  "id": "b421fb8a91fa4aab8288df60aba28794",
+  "id": "b86d77a037f64591872a2447ec510ef9",
   "status": "done",
-  "created_at": "2026-07-20T16:55:40.745707Z",
+  "created_at": "2026-07-20T22:29:25.289107Z",
   "request": {
-    "query": "iPhone 16",
+    "product": "iPhone 16",
     "language": "fr",
     "analyses": null,
     "platforms": [
@@ -46,7 +46,7 @@
         "cdiscount",
         "fnac"
       ],
-      "rationale": "Mock plan derived from query keywords: ['sentiment', 'trends']."
+      "rationale": "Mock plan: complete analysis unless constrained (['sentiment', 'trends'])."
     },
     "judge": {
       "score": 0.85,
@@ -60,7 +60,7 @@
     "model": "mock",
     "duration_ms": 8,
     "llm_calls": 5,
-    "input_tokens": 1458,
+    "input_tokens": 1466,
     "output_tokens": 320,
     "judge_score": 0.85,
     "revised": false,

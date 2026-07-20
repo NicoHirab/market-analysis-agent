@@ -21,17 +21,16 @@ log = get_logger(__name__)
 
 PLANNER_SYSTEM = (
     "You are the planning module of an e-commerce market-analysis agent. "
-    "The request is usually just a product name: in that case plan the COMPLETE "
-    "analysis — every available analysis, on all platforms. Only omit an analysis "
-    "when the request explicitly narrows the scope (e.g. 'compare prices' needs "
-    "only 'trends') or when a constraint pins it. "
+    "The input is a product name. Plan the COMPLETE analysis for it — every "
+    "available analysis, on all platforms — unless a caller constraint narrows "
+    "the scope, in which case respect the constraint exactly. "
     "Available analyses: 'sentiment' (customer review insights), 'trends' "
     "(price/popularity statistics). Available platforms: {platforms}. "
     "Explain your choice briefly."
 )
 
 PLANNER_USER_TEMPLATE = (
-    "User request: {query}\nCaller constraints: {constraints}\nProduce the analysis plan."
+    "Product: {query}\nCaller constraints: {constraints}\nProduce the analysis plan."
 )
 
 SYNTHESIS_SYSTEM = (

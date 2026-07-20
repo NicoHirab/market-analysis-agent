@@ -92,21 +92,16 @@ def _build_market_report(context: dict[str, Any]) -> MarketReport:
 def _build_analysis_plan(context: dict[str, Any]) -> BaseModel:
     from market_agent.agent.state import AnalysisPlan
 
-    query = str(context.get("query", "")).lower()
     requested = context.get("requested_analyses")
     if requested is not None:
         analyses = [a for a in requested if a in ("sentiment", "trends")]
     else:
-        analyses = ["sentiment", "trends"]
-        if any(w in query for w in ("prix", "price", "comparer", "compare")) and not any(
-            w in query for w in ("avis", "review", "sentiment", "client")
-        ):
-            analyses = ["trends"]
+        analyses = ["sentiment", "trends"]  # product name in → complete analysis by default
     platforms = context.get("requested_platforms") or ["amazon", "cdiscount", "fnac"]
     return AnalysisPlan(
         analyses=analyses,
         platforms=list(platforms),
-        rationale=f"Mock plan derived from query keywords: {analyses}.",
+        rationale=f"Mock plan: complete analysis unless constrained ({analyses}).",
     )
 
 

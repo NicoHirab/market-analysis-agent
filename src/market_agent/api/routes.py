@@ -18,7 +18,7 @@ async def create_analysis(
     svc = _service(request)
     analyses = None if body.analyses == "auto" else list(body.analyses)
     job = await svc.start(
-        body.query, language=body.language, analyses=analyses, platforms=body.platforms
+        body.product, language=body.language, analyses=analyses, platforms=body.platforms
     )
     if wait:
         job = await svc.wait(job.id)

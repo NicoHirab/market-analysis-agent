@@ -7,7 +7,7 @@ from market_agent.api.registry import Job, JobStatus
 
 
 class AnalyzeRequest(BaseModel):
-    query: str = Field(min_length=2, max_length=200)
+    product: str = Field(min_length=2, max_length=200, description="Product name to analyze")
     platforms: list[str] | None = None
     analyses: Literal["auto"] | list[Literal["sentiment", "trends"]] = "auto"
     language: Literal["fr", "en"] = "fr"
@@ -36,7 +36,7 @@ class AnalysisResource(BaseModel):
 class AnalysisSummary(BaseModel):
     id: str
     status: JobStatus
-    query: str
+    product: str
     created_at: datetime
 
     @classmethod
@@ -44,6 +44,6 @@ class AnalysisSummary(BaseModel):
         return cls(
             id=job.id,
             status=job.status,
-            query=job.request.get("query", ""),
+            product=job.request.get("product", ""),
             created_at=job.created_at,
         )

@@ -23,9 +23,9 @@ Test technique « Développeur IA — Agent d'analyse de marché e-commerce ». 
 
 ## Présentation
 
-Étant donné une requête produit en langage naturel (« iPhone 16 », « compare les prix du PS5 », « pourquoi les clients sont déçus du Dyson V15 »...), l'agent :
+Étant donné un nom de produit (« iPhone 16 », « PS5 », « Dyson V15 »...), l'agent :
 
-1. **planifie** lui-même quelles analyses sont pertinentes et sur quelles plateformes — un LLM décide, pas une règle codée en dur ;
+1. **planifie** l'analyse — complète par défaut (toutes les analyses, toutes les plateformes), restreignable via le champ `analyses` de l'API ;
 2. **collecte** des données multi-plateformes (Amazon, Cdiscount, Fnac — trois adaptateurs mockés, données déterministes et réalistes) ;
 3. **analyse en parallèle** le sentiment client (LLM) et les tendances de prix (statistiques pures + interprétation LLM) ;
 4. **synthétise** un rapport métier structuré (résumé, analyse prix, recommandations priorisées, niveau de confiance) ;
@@ -54,7 +54,7 @@ flowchart TD
     JUDGE -->|"score OK ou déjà révisé"| OK(["FIN · rapport livré"])
 ```
 
-- **planner** *(LLM)* — interprète la requête et produit un `AnalysisPlan` structuré `{analyses, platforms, rationale}`. Le cas nominal — un nom de produit seul — déclenche l'analyse **complète** (sentiment + tendances, toutes plateformes). Pour restreindre le périmètre, le champ `analyses` de la requête API est la voie garantie (la contrainte est réappliquée en dur dans le code après l'appel LLM) ; une formulation explicitement restrictive (« compare les prix ») peut aussi orienter le planner, sans garantie. Si la requête HTTP impose déjà les analyses ou les plateformes, le planner les traite comme une contrainte dure et ne planifie que le reste.
+- **planner** *(LLM)* — reçoit le nom du produit et produit un `AnalysisPlan` structuré `{analyses, platforms, rationale}`. Par défaut : l'analyse **complète** (sentiment + tendances, toutes plateformes). Le champ `analyses` de la requête API restreint le périmètre de façon garantie — la contrainte est réappliquée en dur dans le code après l'appel LLM, le plan ne dépend jamais de la bonne volonté du modèle. Si la requête HTTP impose déjà les analyses ou les plateformes, le planner les traite comme une contrainte dure et ne planifie que le reste.
 - **collect** *(pas de LLM)* — interroge les adaptateurs plateforme en parallèle (`asyncio.gather` + `asyncio.to_thread`). Un échec total (aucune plateforme ne répond) arrête l'analyse ; un échec partiel dégrade mais continue.
 - **sentiment** *(LLM)* — extraction structurée sur les avis collectés : distribution positif/neutre/négatif, points forts/faibles récurrents, thèmes, citations représentatives.
 - **trends** *(statistiques pures + LLM)* — régression sur l'historique de prix (pente, volatilité, écart concurrentiel, popularité) calculée en Python pur, puis une interprétation courte générée par LLM. Le calcul ne passe jamais par le modèle : aucune statistique ne peut être hallucinée.
@@ -169,13 +169,13 @@ Une erreur sur une plateforme, une analyse de sentiment qui échoue, ou même un
 
 | Méthode & route | Description |
 |---|---|
-| `POST /api/v1/analyses` | Soumet une analyse. Corps : `{query, platforms?, analyses?, language?}` (voir `AnalyzeRequest`). Réponse `202 {id, status}`. Avec `?wait=true`, bloque jusqu'à la fin et renvoie directement la ressource complète (`200`). |
+| `POST /api/v1/analyses` | Soumet une analyse. Corps : `{product, platforms?, analyses?, language?}` (voir `AnalyzeRequest`) — `product` est le nom du produit à analyser. Réponse `202 {id, status}`. Avec `?wait=true`, bloque jusqu'à la fin et renvoie directement la ressource complète (`200`). |
 | `GET /api/v1/analyses` | Historique des analyses (registre en mémoire, plus récentes en premier). |
 | `GET /api/v1/analyses/{id}` | Statut + résultat complet : rapport, plan, verdict du juge, erreurs, métadonnées (`provider`, `model`, `duration_ms`, `llm_calls`, tokens, `judge_score`, `revised`, `degraded`). |
 | `GET /api/v1/analyses/{id}/report.md` | Le rapport rendu en Markdown brut (`text/markdown`). |
 | `GET /health` | Liveness + fournisseur/modèle actif en place (aucun secret exposé). |
 
-`analyses: "auto"` (valeur par défaut) laisse le planner décider ; fournir une liste explicite (`["trends"]` par exemple) contraint le planner, qui continue de choisir les plateformes et le reste du plan.
+`analyses: "auto"` (valeur par défaut) déclenche l'analyse complète ; fournir une liste explicite (`["trends"]` par exemple) restreint l'analyse à ce périmètre — contrainte garantie, appliquée en dur côté code.
 
 ### Exemples
 
@@ -184,7 +184,7 @@ Une erreur sur une plateforme, une analyse de sentiment qui échoue, ou même un
 ```bash
 curl -s -X POST "http://localhost:8000/api/v1/analyses?wait=true" \
   -H 'Content-Type: application/json' \
-  -d '{"query": "iPhone 16"}' | python3 -m json.tool
+  -d '{"product": "iPhone 16"}' | python3 -m json.tool
 ```
 
 **2. Asynchrone + polling**
@@ -192,7 +192,7 @@ curl -s -X POST "http://localhost:8000/api/v1/analyses?wait=true" \
 ```bash
 ID=$(curl -s -X POST "http://localhost:8000/api/v1/analyses" \
   -H 'Content-Type: application/json' \
-  -d '{"query": "PS5"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+  -d '{"product": "PS5"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 
 # à répéter jusqu'à status == "done" (ou "failed")
 curl -s "http://localhost:8000/api/v1/analyses/$ID" | python3 -m json.tool

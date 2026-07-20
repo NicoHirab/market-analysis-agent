@@ -9,9 +9,9 @@ from market_agent.core.config import Settings
 
 def test_registry_create_get_list():
     reg = JobRegistry()
-    a = reg.create({"query": "a"})
-    b = reg.create({"query": "b"})
-    assert reg.get(a.id).request["query"] == "a"
+    a = reg.create({"product": "a"})
+    b = reg.create({"product": "b"})
+    assert reg.get(a.id).request["product"] == "a"
     assert [j.id for j in reg.list_jobs()] == [b.id, a.id]
     assert reg.get("nope") is None
 

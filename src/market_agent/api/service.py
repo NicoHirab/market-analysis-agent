@@ -26,14 +26,14 @@ class AnalysisService:
 
     async def start(
         self,
-        query: str,
+        product: str,
         *,
         language: str = "fr",
         analyses: list[str] | None = None,
         platforms: list[str] | None = None,
     ) -> Job:
         job = self.registry.create(
-            {"query": query, "language": language, "analyses": analyses, "platforms": platforms}
+            {"product": product, "language": language, "analyses": analyses, "platforms": platforms}
         )
         self._tasks[job.id] = asyncio.create_task(self._run(job))
         return job
@@ -51,7 +51,7 @@ class AnalysisService:
         state: dict = {}
         try:
             initial = make_initial_state(
-                job.request["query"],
+                job.request["product"],
                 language=job.request["language"],
                 analyses=job.request["analyses"],
                 platforms=job.request["platforms"],

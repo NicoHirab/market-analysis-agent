@@ -10,7 +10,7 @@ curl -s "$BASE/health" | python3 -m json.tool
 echo "── Submitting analysis for: $QUERY ─────"
 ID=$(curl -s -X POST "$BASE/api/v1/analyses" \
   -H 'Content-Type: application/json' \
-  -d "{\"query\": \"$QUERY\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+  -d "{\"product\": \"$QUERY\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 echo "analysis id: $ID"
 
 echo "── Progress (polling) ──────────────────"
