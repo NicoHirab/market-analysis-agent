@@ -87,8 +87,12 @@ def test_factory_anthropic_native_config():
 
 def test_factory_custom_base_url_overrides():
     llm = build_structured_llm(
-        _settings(llm_provider="custom", llm_model="m", llm_api_key="k",
-                  llm_base_url="https://my-gateway.local/v1")
+        _settings(
+            llm_provider="custom",
+            llm_model="m",
+            llm_api_key="k",
+            llm_base_url="https://my-gateway.local/v1",
+        )
     )
     assert isinstance(llm, LangChainStructuredLLM)
     assert "my-gateway.local" in str(llm.model.openai_api_base)
@@ -112,10 +116,12 @@ async def test_langchain_impl_parses_and_retries(monkeypatch):
         async def ainvoke(self, messages):
             self.calls += 1
             if self.calls == 1:
-                return {"raw": _FakeRaw(), "parsed": None,
-                        "parsing_error": ValueError("bad json")}
-            return {"raw": _FakeRaw(), "parsed": TrendInterpretation(interpretation="ok"),
-                    "parsing_error": None}
+                return {"raw": _FakeRaw(), "parsed": None, "parsing_error": ValueError("bad json")}
+            return {
+                "raw": _FakeRaw(),
+                "parsed": TrendInterpretation(interpretation="ok"),
+                "parsing_error": None,
+            }
 
     class _FakeRaw:
         usage_metadata = {"input_tokens": 10, "output_tokens": 5}

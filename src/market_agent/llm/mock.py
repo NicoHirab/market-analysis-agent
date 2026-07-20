@@ -104,7 +104,8 @@ def _build_analysis_plan(context: dict[str, Any]) -> BaseModel:
             analyses = ["trends"]
     platforms = context.get("requested_platforms") or ["amazon", "cdiscount", "fnac"]
     return AnalysisPlan(
-        analyses=analyses, platforms=list(platforms),
+        analyses=analyses,
+        platforms=list(platforms),
         rationale=f"Mock plan derived from query keywords: {analyses}.",
     )
 

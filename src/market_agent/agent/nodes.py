@@ -79,8 +79,14 @@ class AgentNodes:
         except ValueError as exc:
             return {
                 "collected": None,
-                "errors": [AnalysisError(code=ErrorCode.VALIDATION_FAILURE, source="collect",
-                                         message=str(exc), recoverable=False)],
+                "errors": [
+                    AnalysisError(
+                        code=ErrorCode.VALIDATION_FAILURE,
+                        source="collect",
+                        message=str(exc),
+                        recoverable=False,
+                    )
+                ],
             }
 
         results = await asyncio.gather(
@@ -91,13 +97,12 @@ class AgentNodes:
         for adapter, result in zip(adapters, results, strict=True):
             if isinstance(result, BaseException):
                 errors.append(
-                    AnalysisError(code=ErrorCode.ADAPTER_FAILURE, source=adapter.name,
-                                  message=str(result))
+                    AnalysisError(
+                        code=ErrorCode.ADAPTER_FAILURE, source=adapter.name, message=str(result)
+                    )
                 )
             else:
                 platforms.append(result)
 
-        collected = (
-            CollectedData(query=state["query"], platforms=platforms) if platforms else None
-        )
+        collected = CollectedData(query=state["query"], platforms=platforms) if platforms else None
         return {"collected": collected, "errors": errors}

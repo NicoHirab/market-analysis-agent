@@ -43,8 +43,10 @@ class LangChainStructuredLLM:
             error = result.get("parsing_error")
             if attempt == 0:
                 messages.append(
-                    ("user",
-                     f"Your previous answer was not valid for the required schema "
-                     f"({error}). Answer again, strictly matching the schema.")
+                    (
+                        "user",
+                        f"Your previous answer was not valid for the required schema "
+                        f"({error}). Answer again, strictly matching the schema.",
+                    )
                 )
         raise LLMGenerationError(f"invalid structured output for {schema.__name__}: {error}")

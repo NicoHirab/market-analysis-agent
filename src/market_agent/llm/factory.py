@@ -31,8 +31,10 @@ def build_structured_llm(settings: Settings) -> StructuredLLM:
         # max_retries: the underlying SDK retries transient errors (429/5xx)
         # with exponential backoff.
         model = ChatAnthropic(
-            model=model_name, api_key=settings.llm_api_key,
-            timeout=settings.llm_timeout_s, max_retries=2,
+            model=model_name,
+            api_key=settings.llm_api_key,
+            timeout=settings.llm_timeout_s,
+            max_retries=2,
         )
         return LangChainStructuredLLM(
             model, model_name=model_name, timeout_s=settings.llm_timeout_s
@@ -48,7 +50,10 @@ def build_structured_llm(settings: Settings) -> StructuredLLM:
 
     api_key = settings.llm_api_key or ("ollama" if provider == "ollama" else "")
     model = ChatOpenAI(
-        model=model_name, api_key=api_key, base_url=base_url,
-        timeout=settings.llm_timeout_s, max_retries=2,
+        model=model_name,
+        api_key=api_key,
+        base_url=base_url,
+        timeout=settings.llm_timeout_s,
+        max_retries=2,
     )
     return LangChainStructuredLLM(model, model_name=model_name, timeout_s=settings.llm_timeout_s)

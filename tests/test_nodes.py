@@ -17,9 +17,13 @@ def _nodes(**kw) -> AgentNodes:
 
 def _state(**kw) -> AnalysisState:
     base: AnalysisState = {
-        "query": "iPhone 16", "language": "fr",
-        "requested_analyses": None, "requested_platforms": None,
-        "revision_count": 0, "errors": [], "usage": [],
+        "query": "iPhone 16",
+        "language": "fr",
+        "requested_analyses": None,
+        "requested_platforms": None,
+        "revision_count": 0,
+        "errors": [],
+        "usage": [],
     }
     base.update(kw)  # type: ignore[typeddict-item]
     return base

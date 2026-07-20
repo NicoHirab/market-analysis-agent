@@ -79,6 +79,9 @@ def generate_platform_data(query: str, platform: str, *, days: int = 30) -> Plat
 
     popularity = min(100.0, max(0.0, rng.uniform(20, 90) + pop_bonus))
     return PlatformData(
-        platform=platform, offers=offers, reviews=reviews,
-        price_history=history, popularity_score=round(popularity, 1),
+        platform=platform,
+        offers=offers,
+        reviews=reviews,
+        price_history=history,
+        popularity_score=round(popularity, 1),
     )
