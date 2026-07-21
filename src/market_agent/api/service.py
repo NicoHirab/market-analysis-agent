@@ -185,7 +185,16 @@ class AnalysisService:
             "llm_calls": len(usage),
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
-            "judge_score": judge.score if judge else None,
+            "judge_passed": judge.passed if judge else None,
+            "judge_criteria": (
+                {
+                    "grounding": judge.grounding.passed,
+                    "completeness": judge.completeness.passed,
+                    "actionability": judge.actionability.passed,
+                }
+                if judge
+                else None
+            ),
             "revised": state.get("revision_count", 0) > 1,
             "degraded": bool(state.get("errors")) or bool(missing),
         }

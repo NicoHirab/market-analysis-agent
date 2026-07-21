@@ -6,7 +6,6 @@ def test_settings_defaults_to_mock_provider():
     s = Settings(_env_file=None)
     assert s.llm_provider == "mock"
     assert s.judge_enabled is True
-    assert 0 < s.judge_threshold < 1
 
 
 def test_settings_reads_env(monkeypatch):

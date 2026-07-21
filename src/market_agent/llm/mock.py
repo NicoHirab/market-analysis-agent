@@ -106,28 +106,29 @@ def _build_analysis_plan(context: dict[str, Any]) -> BaseModel:
 
 
 def _build_judge_verdict(context: dict[str, Any]) -> BaseModel:
-    from market_agent.agent.state import JudgeVerdict
+    from market_agent.agent.state import CriterionResult, JudgeVerdict
 
-    threshold = float(context.get("threshold", 0.7))
     revisions_done = int(context.get("revision_count", 0))
     force = "force-revision" in str(context.get("query", "")).lower()
     if force and revisions_done == 0:
-        score = 0.4
-    elif revisions_done > 0:
-        score = 0.9
-    else:
-        score = 0.85
-    return JudgeVerdict(
-        score=score,
-        passed=score >= threshold,
-        critique=(
-            ""
-            if score >= threshold
-            else (
+        return JudgeVerdict(
+            grounding=CriterionResult(
+                passed=False, comment="Des affirmations ne sont pas ancrées dans les données."
+            ),
+            completeness=CriterionResult(passed=True, comment="Couvre le plan."),
+            actionability=CriterionResult(passed=True, comment="Recommandations concrètes."),
+            passed=False,
+            critique=(
                 "Le rapport manque de précision chiffrée ; ancrer chaque affirmation "
                 "dans les données."
-            )
-        ),
+            ),
+        )
+    return JudgeVerdict(
+        grounding=CriterionResult(passed=True, comment="Ancré dans les données."),
+        completeness=CriterionResult(passed=True, comment="Couvre le plan."),
+        actionability=CriterionResult(passed=True, comment="Recommandations concrètes."),
+        passed=True,
+        critique="",
     )
 
 

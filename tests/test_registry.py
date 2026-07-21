@@ -29,7 +29,12 @@ async def test_service_runs_analysis_to_done():
     assert "Rapport d'analyse" in job.result["report_markdown"]
     assert job.meta["llm_calls"] >= 3
     assert job.meta["provider"] == "mock"
-    assert job.meta["judge_score"] is not None
+    assert job.meta["judge_passed"] is True
+    assert job.meta["judge_criteria"] == {
+        "grounding": True,
+        "completeness": True,
+        "actionability": True,
+    }
 
 
 async def test_service_marks_failed_on_total_collection_failure():

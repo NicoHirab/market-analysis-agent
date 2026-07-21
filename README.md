@@ -4,7 +4,7 @@
 
 *(Code, identifiants et commentaires en anglais ; ce README et les rapports générés sont en français.)*
 
-Test technique « Développeur IA — Agent d'analyse de marché e-commerce ». Ce dépôt couvre l'intégralité du périmètre code (étapes 1 à 3 de l'énoncé : architecture, outils, tests) ; les étapes 4 à 7, théoriques, sont résumées plus bas et développées dans [docs/reponses-theoriques.md](docs/reponses-theoriques.md), avec des réponses ancrées dans le code réellement livré plutôt que dans l'abstrait.
+Test technique « Développeur IA — Agent d'analyse de marché e-commerce ». Ce dépôt couvre l'intégralité du périmètre code (étapes 1 à 3 de l'énoncé : architecture, outils, tests) ; les étapes 4 à 7, théoriques, sont résumées plus bas et développées dans [docs/reponses-theoriques.md](docs/reponses-theoriques.md).
 
 ## Sommaire
 
@@ -59,7 +59,7 @@ flowchart TD
 - **sentiment** *(LLM)* — extraction structurée sur les avis collectés : distribution positif/neutre/négatif, points forts/faibles récurrents, thèmes, citations représentatives.
 - **trends** *(statistiques pures + LLM)* — régression sur l'historique de prix (pente, volatilité, écart concurrentiel, popularité) calculée en Python pur, puis une interprétation courte générée par LLM. Le calcul ne passe jamais par le modèle : aucune statistique ne peut être hallucinée.
 - **synthesize** *(LLM)* — compile le `MarketReport` final à partir de tout ce qui précède, en tenant compte des éventuelles erreurs de collecte et de la critique du juge en cas de révision.
-- **judge** *(LLM)* — note le rapport sur une grille {ancrage dans les données, complétude par rapport au plan, actionnabilité}, et déclenche au plus **une** révision si le score est sous le seuil (`JUDGE_THRESHOLD`, 0.7 par défaut — voir `MAX_SYNTHESIS_PASSES = 2` dans `graph.py`, qui borne la boucle par construction). Désactivable via `JUDGE_ENABLED=false`.
+- **judge** *(LLM)* — évalue le rapport **critère par critère** : ancrage dans les données, complétude par rapport au plan, actionnabilité — un verdict pass/fail et un commentaire par critère. Le rapport n'est accepté que si **tous** les critères passent ; la conjonction est appliquée en dur dans le code (`passed = aucun critère en échec`), jamais déléguée au flag agrégé du modèle. Un critère en échec déclenche au plus **une** révision avec la critique injectée (`MAX_SYNTHESIS_PASSES = 2` dans `graph.py` borne la boucle par construction). Désactivable via `JUDGE_ENABLED=false`.
 
 L'état circule dans un `TypedDict` unique (`agent/state.py`) ; les clés remplies par les branches parallèles utilisent des reducers pour un fan-in sans conflit :
 
@@ -98,7 +98,7 @@ bash scripts/demo.sh                # utilise "iPhone 16" par défaut
 bash scripts/demo.sh "PS5"          # ou n'importe quelle requête
 ```
 
-`demo.sh` enchaîne un health-check, soumet une analyse, interroge le statut jusqu'à complétion, puis imprime le rapport Markdown et les métadonnées (tokens, score du juge). Chaque analyse terminée est aussi **archivée localement** dans `runs/<horodatage>-<produit>-<id>/` (`analysis.json` + `report.md`) — avec Docker, le volume monté rend ces artefacts visibles sur la machine hôte. Le fournisseur par défaut (`LLM_PROVIDER=mock`, voir `docker-compose.yml`) est un simulateur déterministe : aucune clé API, aucun appel réseau sortant, résultat reproductible pour n'importe quelle requête.
+`demo.sh` enchaîne un health-check, soumet une analyse, interroge le statut jusqu'à complétion, puis imprime le rapport Markdown et les métadonnées (tokens, verdict du juge par critère). Chaque analyse terminée est aussi **archivée localement** dans `runs/<horodatage>-<produit>-<id>/` (`analysis.json` + `report.md`) — avec Docker, le volume monté rend ces artefacts visibles sur la machine hôte. Le fournisseur par défaut (`LLM_PROVIDER=mock`, voir `docker-compose.yml`) est un simulateur déterministe : aucune clé API, aucun appel réseau sortant, résultat reproductible pour n'importe quelle requête.
 
 ### Option B — Local, sans Docker
 
@@ -128,7 +128,6 @@ Toutes les variables sont lues par `Settings` (`core/config.py`, `pydantic-setti
 | `LLM_BASE_URL` | *(vide)* | force un endpoint OpenAI-compatible personnalisé |
 | `LLM_TIMEOUT_S` | `60` | timeout par appel LLM |
 | `JUDGE_ENABLED` | `true` | passe à `false` pour sauter le nœud `judge` et sa boucle de révision |
-| `JUDGE_THRESHOLD` | `0.7` | score minimal pour qu'un rapport soit accepté sans révision |
 | `ANALYSIS_TIMEOUT_S` | `300` | timeout global par analyse (couvre tout le graphe) |
 | `RUNS_DIR` | `runs` | dossier d'archivage local des analyses terminées (`analysis.json` + `report.md`) ; vide pour désactiver |
 | `LOG_LEVEL` | `INFO` | niveau du logger racine (JSON structuré, voir étape 5) |
@@ -172,7 +171,7 @@ Une erreur sur une plateforme, une analyse de sentiment qui échoue, ou même un
 |---|---|
 | `POST /api/v1/analyses` | Soumet une analyse. Corps : `{product, platforms?, analyses?, language?}` (voir `AnalyzeRequest`) — `product` est le nom du produit à analyser. Réponse `202 {id, status}`. Avec `?wait=true`, bloque jusqu'à la fin et renvoie directement la ressource complète (`200`). |
 | `GET /api/v1/analyses` | Historique des analyses (registre en mémoire, plus récentes en premier). |
-| `GET /api/v1/analyses/{id}` | Statut + résultat complet : rapport, plan, verdict du juge, erreurs, métadonnées (`provider`, `model`, `duration_ms`, `llm_calls`, tokens, `judge_score`, `revised`, `degraded`). |
+| `GET /api/v1/analyses/{id}` | Statut + résultat complet : rapport, plan, verdict du juge, erreurs, métadonnées (`provider`, `model`, `duration_ms`, `llm_calls`, tokens, `judge_passed`, `judge_criteria` — verdict par critère —, `revised`, `degraded`). |
 | `GET /api/v1/analyses/{id}/report.md` | Le rapport rendu en Markdown brut (`text/markdown`). |
 | `GET /health` | Liveness + fournisseur/modèle actif en place (aucun secret exposé). |
 
@@ -261,7 +260,7 @@ uv run pytest -q
 
 ## Étape 5 — Monitoring et observabilité
 
-**En résumé :** le logging JSON structuré est déjà en place (`core/logging.py`) et s'expédie tel quel vers Loki/Datadog/ELK ; au-dessus, des spans OpenTelemetry par nœud et LangSmith en complément LLM. Métriques clés : latence, taux d'échec par outil (`AnalysisError.source`), tokens par analyse (`LLMUsage`), score du juge et taux de révision — avec alerting sur les dérives (erreurs, coût, qualité).
+**En résumé :** le logging JSON structuré est déjà en place (`core/logging.py`) et s'expédie tel quel vers Loki/Datadog/ELK ; au-dessus, des spans OpenTelemetry par nœud et LangSmith en complément LLM. Métriques clés : latence, taux d'échec par outil (`AnalysisError.source`), tokens par analyse (`LLMUsage`), verdicts du juge par critère et taux de révision — avec alerting sur les dérives (erreurs, coût, qualité).
 
 ➡️ **Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-5--monitoring-et-observabilité)**
 

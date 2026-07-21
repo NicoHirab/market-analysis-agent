@@ -1,7 +1,7 @@
 import operator
 from typing import Annotated, Literal, TypedDict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from market_agent.core.errors import AnalysisError
 from market_agent.llm.base import LLMUsage
@@ -19,10 +19,28 @@ class AnalysisPlan(BaseModel):
     rationale: str
 
 
+class CriterionResult(BaseModel):
+    passed: bool
+    comment: str = ""
+
+
 class JudgeVerdict(BaseModel):
-    score: float = Field(ge=0, le=1)
+    """Criteria-based quality verdict: the report is good only if EVERY
+    criterion passes. The aggregation (`passed` = conjunction) is enforced in
+    code by the judge node — never trusted from the model."""
+
+    grounding: CriterionResult
+    completeness: CriterionResult
+    actionability: CriterionResult
     passed: bool
     critique: str = ""
+
+    def failed_criteria(self) -> list[str]:
+        return [
+            name
+            for name in ("grounding", "completeness", "actionability")
+            if not getattr(self, name).passed
+        ]
 
 
 class AnalysisState(TypedDict, total=False):

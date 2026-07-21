@@ -1,7 +1,7 @@
 {
-  "id": "de886bb38a474dbea6b7893bbb01b30d",
+  "id": "0a653745807d4528800d1eb469b41925",
   "status": "done",
-  "created_at": "2026-07-20T22:48:39.373154Z",
+  "created_at": "2026-07-21T01:54:26.172145Z",
   "request": {
     "product": "iPhone 16",
     "language": "fr",
@@ -49,7 +49,18 @@
       "rationale": "Mock plan: complete analysis unless constrained (['sentiment', 'trends'])."
     },
     "judge": {
-      "score": 0.85,
+      "grounding": {
+        "passed": true,
+        "comment": "Ancr\u00e9 dans les donn\u00e9es."
+      },
+      "completeness": {
+        "passed": true,
+        "comment": "Couvre le plan."
+      },
+      "actionability": {
+        "passed": true,
+        "comment": "Recommandations concr\u00e8tes."
+      },
       "passed": true,
       "critique": ""
     },
@@ -60,9 +71,14 @@
     "model": "mock",
     "duration_ms": 9,
     "llm_calls": 5,
-    "input_tokens": 1560,
+    "input_tokens": 1638,
     "output_tokens": 320,
-    "judge_score": 0.85,
+    "judge_passed": true,
+    "judge_criteria": {
+      "grounding": true,
+      "completeness": true,
+      "actionability": true
+    },
     "revised": false,
     "degraded": false
   }

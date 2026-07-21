@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import Callable
 
-from market_agent.agent.state import AnalysisPlan, AnalysisState, JudgeVerdict
+from market_agent.agent.state import AnalysisPlan, AnalysisState, CriterionResult, JudgeVerdict
 from market_agent.core.config import Settings
 from market_agent.core.errors import AnalysisError, ErrorCode
 from market_agent.core.logging import get_logger
@@ -48,15 +48,20 @@ SYNTHESIS_USER_TEMPLATE = (
 )
 
 JUDGE_SYSTEM = (
-    "You are a strict quality reviewer for market-analysis reports. Score the report "
-    "from 0 to 1 on: grounding (claims match the data), completeness (covers what the "
-    "plan requested), actionability (recommendations are concrete). Give a short, "
-    "specific critique when the score is below {threshold}."
+    "You are a strict quality reviewer for market-analysis reports. Evaluate the "
+    "report on each criterion INDEPENDENTLY and verdict pass or fail for each, "
+    "with a one-sentence comment:\n"
+    "- grounding: every claim is backed by the provided data, no invented numbers;\n"
+    "- completeness: the report covers everything the plan requested — an analysis "
+    "the plan did NOT request must not count against it;\n"
+    "- actionability: recommendations are concrete and prioritized.\n"
+    "The report is acceptable only if EVERY criterion passes. If any criterion "
+    "fails, write a short, specific critique explaining exactly what to fix."
 )
 
 JUDGE_USER_TEMPLATE = (
     "Plan: {plan}\nData available: sentiment={has_sentiment}, trends={has_trends}\n"
-    "Report:\n{report_json}\n\nScore this report."
+    "Report:\n{report_json}\n\nEvaluate each criterion."
 )
 
 
@@ -264,7 +269,7 @@ class AgentNodes:
         try:
             verdict, usage = await self.llm.generate(
                 JudgeVerdict,
-                system=JUDGE_SYSTEM.format(threshold=self.settings.judge_threshold),
+                system=JUDGE_SYSTEM,
                 user=JUDGE_USER_TEMPLATE.format(
                     plan=plan.model_dump_json() if plan else "{}",
                     has_sentiment=state.get("sentiment") is not None,
@@ -274,18 +279,24 @@ class AgentNodes:
                 context={
                     "query": state["query"],
                     "revision_count": state.get("revision_count", 0) - 1,
-                    "threshold": self.settings.judge_threshold,
                 },
                 purpose="judge",
             )
-            # Graph enforces the quality gate on the numeric score, not the LLM's
-            # self-reported `passed` flag — configuration governs, not model whim.
-            verdict.passed = verdict.score >= self.settings.judge_threshold
+            # The gate is the conjunction of the criteria, enforced in code —
+            # never the LLM's self-reported aggregate flag.
+            verdict.passed = not verdict.failed_criteria()
             return {"judge": verdict, "usage": [usage]}
         except Exception as exc:  # judge failure must never kill a finished report
             log.warning("judge failed", extra={"ctx": {"error": str(exc)}})
+            unavailable = CriterionResult(passed=True, comment="judge unavailable")
             return {
-                "judge": JudgeVerdict(score=1.0, passed=True, critique="judge unavailable"),
+                "judge": JudgeVerdict(
+                    grounding=unavailable,
+                    completeness=unavailable,
+                    actionability=unavailable,
+                    passed=True,
+                    critique="judge unavailable",
+                ),
                 "errors": [
                     AnalysisError(code=ErrorCode.LLM_FAILURE, source="judge", message=str(exc))
                 ],

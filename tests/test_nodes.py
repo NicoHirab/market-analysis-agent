@@ -130,16 +130,18 @@ async def test_synthesize_produces_report_with_caveats_when_degraded():
     assert update["revision_count"] == 1
 
 
-async def test_judge_passes_normal_report():
+async def test_judge_passes_when_all_criteria_pass():
     state = _state(report=_mock_report(), revision_count=1)
     update = await _nodes().judge(state)
     assert isinstance(update["judge"], JudgeVerdict)
+    assert update["judge"].failed_criteria() == []
     assert update["judge"].passed is True
 
 
-async def test_judge_fails_then_flags_revision():
+async def test_judge_fails_on_any_failed_criterion_and_flags_revision():
     state = _state(query="iPhone 16 force-revision", report=_mock_report(), revision_count=1)
     update = await _nodes().judge(state)
+    assert update["judge"].failed_criteria() == ["grounding"]
     assert update["judge"].passed is False
     assert update["judge"].critique
 
@@ -166,20 +168,26 @@ async def test_synthesize_handles_platform_with_no_offers():
     assert isinstance(update["report"], MarketReport)
 
 
-async def test_judge_enforces_threshold_over_llm_passed_flag():
-    # A model may return passed=True with a sub-threshold score; the node must
-    # enforce the configured threshold rather than trust the self-report.
-    from market_agent.agent.state import JudgeVerdict
+async def test_judge_enforces_conjunction_over_llm_passed_flag():
+    # A model may claim passed=True while failing a criterion; the node must
+    # derive `passed` from the criteria conjunction, not trust the self-report.
+    from market_agent.agent.state import CriterionResult, JudgeVerdict
     from market_agent.llm.base import LLMUsage
 
     class _InconsistentLLM:
         async def generate(self, schema, *, system, user, context=None, purpose=""):
             return (
-                JudgeVerdict(score=0.3, passed=True, critique=""),
+                JudgeVerdict(
+                    grounding=CriterionResult(passed=True),
+                    completeness=CriterionResult(passed=False, comment="missing trends"),
+                    actionability=CriterionResult(passed=True),
+                    passed=True,  # inconsistent self-report
+                    critique="",
+                ),
                 LLMUsage(purpose=purpose, model="stub"),
             )
 
-    nodes = AgentNodes(llm=_InconsistentLLM(), settings=Settings(_env_file=None))  # threshold 0.7
+    nodes = AgentNodes(llm=_InconsistentLLM(), settings=Settings(_env_file=None))
     update = await nodes.judge(_state(report=_mock_report(), revision_count=1))
-    assert update["judge"].score == 0.3
-    assert update["judge"].passed is False  # enforced: 0.3 < 0.7
+    assert update["judge"].failed_criteria() == ["completeness"]
+    assert update["judge"].passed is False  # conjunction enforced in code
