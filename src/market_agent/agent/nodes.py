@@ -35,9 +35,12 @@ PLANNER_USER_TEMPLATE = (
 
 SYNTHESIS_SYSTEM = (
     "You are a senior e-commerce market analyst writing for a business audience. "
-    "Write the report in {language}. Ground every claim in the provided data — never "
-    "invent numbers. If some analyses are missing, say so in the caveats and lower "
-    "your confidence accordingly. Recommendations must be concrete and prioritized."
+    "Write the report in {language}. Ground every factual claim in the provided "
+    "data — never invent numbers. The `confidence` field is different: it is YOUR "
+    "calibrated judgment (0 to 1) of how reliable the report is given the data — "
+    "not a value taken from the data. If some analyses are missing, say so in the "
+    "caveats and lower your confidence accordingly. Recommendations must be "
+    "concrete and prioritized."
 )
 
 SYNTHESIS_USER_TEMPLATE = (
@@ -51,7 +54,10 @@ JUDGE_SYSTEM = (
     "You are a strict quality reviewer for market-analysis reports. Evaluate the "
     "report on each criterion INDEPENDENTLY and verdict pass or fail for each, "
     "with a one-sentence comment:\n"
-    "- grounding: every claim is backed by the provided data, no invented numbers;\n"
+    "- grounding: every FACTUAL claim (prices, statistics, quotes) is backed by "
+    "the provided source data, no invented numbers. The report's own assessment "
+    "fields — confidence, caveats, recommendation choices — are the analyst's "
+    "judgment, not data claims: never fail grounding because of them;\n"
     "- completeness: the report covers everything the plan requested — an analysis "
     "the plan did NOT request must not count against it;\n"
     "- actionability: recommendations are concrete and prioritized.\n"
@@ -60,7 +66,11 @@ JUDGE_SYSTEM = (
 )
 
 JUDGE_USER_TEMPLATE = (
-    "Plan: {plan}\nData available: sentiment={has_sentiment}, trends={has_trends}\n"
+    "Plan: {plan}\n\n"
+    "Source data the report must be grounded in:\n"
+    "Collected data summary:\n{data_summary}\n"
+    "Sentiment insights: {sentiment}\n"
+    "Trend insights: {trends}\n\n"
     "Report:\n{report_json}\n\nEvaluate each criterion."
 )
 
@@ -266,14 +276,18 @@ class AgentNodes:
         report = state.get("report")
         assert report is not None
         plan = state.get("plan")
+        sentiment, trends = state.get("sentiment"), state.get("trends")
         try:
             verdict, usage = await self.llm.generate(
                 JudgeVerdict,
                 system=JUDGE_SYSTEM,
+                # The judge sees the SAME source data as synthesize: grounding
+                # must be verifiable against the data, not taken on faith.
                 user=JUDGE_USER_TEMPLATE.format(
                     plan=plan.model_dump_json() if plan else "{}",
-                    has_sentiment=state.get("sentiment") is not None,
-                    has_trends=state.get("trends") is not None,
+                    data_summary=self._data_summary(state),
+                    sentiment=sentiment.model_dump_json() if sentiment else "unavailable",
+                    trends=trends.model_dump_json() if trends else "unavailable",
                     report_json=report.model_dump_json(),
                 ),
                 context={
