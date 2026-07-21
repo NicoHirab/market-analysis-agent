@@ -1,6 +1,6 @@
 # Réponses aux questions théoriques (étapes 4 à 7)
 
-> Réponses aux étapes 4 à 7 du test, dans l'ordre exact des questions posées. Chaque réponse s'appuie sur le code livré (chemins de fichiers à l'appui) ; le [README](../README.md) en donne les résumés.
+> Réponses aux étapes 4 à 7 du test, dans l'ordre exact des questions posées. Chaque réponse s'appuie sur le code livré (chemins de fichiers à l'appui) ; le [README](../README.md) documente le système lui-même.
 
 ## Étape 4 — Architecture de données et stockage
 

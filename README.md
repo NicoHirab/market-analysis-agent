@@ -2,7 +2,6 @@
 
 > Agent d'analyse de marché e-commerce piloté par LLM et orchestré avec LangGraph — fonctionne de bout en bout **sans aucune clé API**, et change de fournisseur LLM en une seule variable d'environnement.
 
-
 Le code couvre les étapes 1 à 3 de l'énoncé ; les étapes 4 à 7, théoriques, sont traitées dans [docs/reponses-theoriques.md](docs/reponses-theoriques.md).
 
 ## Sommaire
@@ -130,21 +129,17 @@ Variables lues par `Settings` (`core/config.py`) depuis l'environnement ou `.env
 
 ## Choix techniques et justifications
 
-> *« La qualité de la réflexion et la clarté de vos justifications sont plus importantes que la quantité de fonctionnalités. »* — la grille de lecture de chaque arbitrage ci-dessous.
+### LangGraph
 
-### LangGraph, plutôt qu'une boucle native ou le Claude Agent SDK
-
-**Orchestration native** (boucle `asyncio` sans framework) : écartée. Ré-implémenter fan-out parallèle, suivi d'état, boucle bornée et reprise sur erreur n'apporte aucune valeur différenciante ici, avec un vrai risque de bugs de plomberie. LangGraph fournit ces briques nativement.
-
-**Claude Agent SDK** : écarté après vérification concrète, pas par principe. L'empaquetage Docker n'était pas un obstacle (le package pip embarque le binaire) ; le point bloquant est qu'en mode headless, le SDK impose une `ANTHROPIC_API_KEY` — incompatible avec l'exigence provider-agnostic : l'évaluateur doit pouvoir lancer l'agent avec la clé qu'il a, ou aucune.
+**Orchestration native** (boucle `asyncio` sans framework) : écartée. Ré-implémenter fan-out parallèle, suivi d'état, boucle bornée et reprise sur erreur n'apporte aucune valeur différenciante ici, avec un risque de bugs de plomberie. LangGraph fournit ces briques nativement.
 
 **LangGraph** retenu : contrôle explicite du graphe (fan-out, boucle bornée par construction) sans réécrire un runtime, et une abstraction de modèle (`langchain-core`) qui ne verrouille aucun fournisseur.
 
-### Le pattern hybride : « le LLM décide, le graphe garantit »
+### Orchestration
 
 Aucune règle métier codée en dur : le nœud `planner` (LLM, sortie structurée) décide *quoi* faire. Le graphe garantit *comment* : routage conditionnel (`route_after_collect`), fan-out réellement parallèle entre `sentiment` et `trends`, fan-in sans conflit par reducers, et boucle de révision strictement bornée (`route_after_judge` — jamais de boucle infinie, même si le juge reste insatisfait). Résultat : un agent piloté par LLM qui reste prévisible, testable et borné.
 
-### Un seul seam pour tous les appels LLM : `StructuredLLM`
+### Abstraction LLM
 
 Chaque appel LLM — planner, sentiment, trends, synthesize, judge — passe par `StructuredLLM.generate(schema, system, user, context, purpose)` (`llm/base.py`) : schéma Pydantic en entrée, objet validé + usage en sortie. Deux implémentations :
 
@@ -152,10 +147,6 @@ Chaque appel LLM — planner, sentiment, trends, synthesize, judge — passe par
 - `MockStructuredLLM` — simulateur déterministe qui construit une instance valide du schéma depuis le `context`, seedé par le produit.
 
 Ce seam rend possibles à la fois la démo zéro-clé et les 66 tests hors-ligne. Côté fournisseurs réels : `ChatAnthropic` natif pour Anthropic, un unique `ChatOpenAI` + `base_url` pour tout le reste — un seul client à maintenir pour six fournisseurs.
-
-### Dégradation gracieuse plutôt qu'échec binaire
-
-Chaque nœud à risque capture ses exceptions et les convertit en `AnalysisError` typé (`code`, `source`, `message`, `recoverable`), accumulé dans l'état via reducer. Seul un échec total de collecte arrête l'analyse ; tout le reste continue en mode dégradé, et `synthesize` traduit les manques en `caveats` explicites avec confiance réduite. Même principe pour le juge : s'il est indisponible, un verdict de secours (`passed=True`) est renvoyé plutôt que de perdre un rapport terminé.
 
 ## API
 
@@ -252,7 +243,3 @@ uv run pytest -q
 - **Pas de cache** — chaque requête rejoue tout le graphe (voir l'[étape 6](docs/reponses-theoriques.md#étape-6--scaling-et-optimisation)).
 - **Coût non chiffré** — tokens mesurés par analyse (`LLMUsage`), conversion en coût non implémentée ([étape 5](docs/reponses-theoriques.md#étape-5--monitoring-et-observabilité)).
 - **Un seul juge, une seule grille** — pas de vote multi-modèle, pas encore de golden set ([étape 7](docs/reponses-theoriques.md#étape-7--amélioration-continue-et-ab-testing)).
-
----
-
-Vérifié le 20 juillet 2026 : `uv run pytest -q` (66 tests), `ruff check` + `ruff format --check`, `docker compose up --build` et `bash scripts/demo.sh` exécutés avec succès avant commit.
