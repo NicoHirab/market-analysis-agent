@@ -196,20 +196,20 @@ curl -s "http://localhost:8000/api/v1/analyses/$ID" | python3 -m json.tool
 
 Swagger UI sur `http://localhost:8000/docs` ; schéma OpenAPI sur `/openapi.json`.
 
-Un exemple complet est committé (`examples/request.json`, `examples/report-iphone-16.md`, `examples/response-iphone-16.json`) — généré par une exécution réelle, pas rédigé à la main :
+Un exemple complet est committé (`examples/request.json`, `examples/report-nintendo-switch-2.md`, `examples/response-nintendo-switch-2.json`) — généré par une exécution réelle avec un vrai fournisseur (`gpt-5.6-luna` ; les trois critères du juge au vert, confiance 0,88), pas rédigé à la main. Le mode `mock` zéro-clé produit la même structure, en plus simple. Extrait :
 
 ```markdown
-# Rapport d'analyse de marché — iPhone 16
+# Rapport d'analyse de marché — Nintendo Switch 2
 
 ## Synthèse
-Analyse de marché pour iPhone 16. Prix moyen constaté : 786.46 $ CAD. Position concurrentielle favorable.
+Le marché canadien observé de la Nintendo Switch 2 est concurrentiel, avec 17 offres
+recensées sur Amazon, Best Buy et Walmart. Walmart présente le positionnement tarifaire
+le plus avantageux (189,04–224,69 CAD), tandis que Best Buy est le plus cher
+(225,44–250,84 CAD). Les prix suivent une tendance haussière modérée de 0,202 % par jour
+[...] La priorité commerciale est de rester proche du niveau de prix de Walmart tout en
+valorisant la qualité, la conformité et la livraison.
 
-## Sentiment client
-Sentiment majoritairement positif (50% positif, 40% négatif) pour iPhone 16.
-
-## Tendances
-Les prix sont en hausse sur la période, avec un écart de 17.3% entre la plateforme la moins
-chère (walmart) et la plus chère (bestbuy).
+[... analyse des prix, sentiment client, tendances, recommandations : fichier complet]
 ```
 
 ## Outils
