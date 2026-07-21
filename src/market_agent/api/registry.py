@@ -21,10 +21,7 @@ class Job:
 
 
 class JobRegistry:
-    """In-memory, single-process job store.
-
-    The Redis/Postgres upgrade path is discussed in the README (theory, step 4).
-    """
+    """In-memory, single-process job store."""
 
     def __init__(self) -> None:
         self._jobs: dict[str, Job] = {}
