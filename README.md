@@ -202,12 +202,11 @@ Un exemple complet est committé (`examples/request.json`, `examples/report-nint
 # Rapport d'analyse de marché — Nintendo Switch 2
 
 ## Synthèse
-Le marché canadien observé de la Nintendo Switch 2 est concurrentiel, avec 17 offres
-recensées sur Amazon, Best Buy et Walmart. Walmart présente le positionnement tarifaire
-le plus avantageux (189,04–224,69 CAD), tandis que Best Buy est le plus cher
-(225,44–250,84 CAD). Les prix suivent une tendance haussière modérée de 0,202 % par jour
-[...] La priorité commerciale est de rester proche du niveau de prix de Walmart tout en
-valorisant la qualité, la conformité et la livraison.
+Le marché canadien de la Nintendo Switch 2 présente une demande contrastée selon les
+enseignes : Amazon affiche la popularité la plus élevée avec 74,8/100, devant Walmart à
+63,7/100 [...] Walmart propose les prix les plus bas dans les données collectées, avec
+des offres de 189,04 à 224,69 CAD [...] Le sentiment client est globalement favorable :
+78,1 % des 32 avis analysés sont positifs ou très positifs.
 
 [... analyse des prix, sentiment client, tendances, recommandations : fichier complet]
 ```
