@@ -2,9 +2,8 @@
 
 > Agent d'analyse de marché e-commerce piloté par LLM et orchestré avec LangGraph — fonctionne de bout en bout **sans aucune clé API**, et change de fournisseur LLM en une seule variable d'environnement.
 
-*(Code, identifiants et commentaires en anglais ; ce README et les rapports générés sont en français.)*
 
-Test technique « Développeur IA — Agent d'analyse de marché e-commerce ». Le code couvre les étapes 1 à 3 de l'énoncé ; les étapes 4 à 7, théoriques, sont résumées plus bas et développées dans [docs/reponses-theoriques.md](docs/reponses-theoriques.md).
+Le code couvre les étapes 1 à 3 de l'énoncé ; les étapes 4 à 7, théoriques, sont résumées plus bas et développées dans [docs/reponses-theoriques.md](docs/reponses-theoriques.md).
 
 ## Sommaire
 
@@ -41,21 +40,21 @@ Stack : Python 3.13 · LangGraph 1.2 · LangChain-core 1.4 · FastAPI · Pydanti
 
 ```mermaid
 flowchart TD
-    START(["Nom de produit"]) --> PLANNER["planner — LLM<br/>→ AnalysisPlan"]
+    START(["Nom de produit"]) --> PLANNER["planner — LLM<br/>sortie : AnalysisPlan"]
     PLANNER --> COLLECT["collect — adaptateurs plateforme<br/>en parallèle (asyncio.gather)"]
     COLLECT -->|"échec total"| KO(["FIN · analyse échouée"])
-    COLLECT -->|"plan demande 'sentiment'"| SENTIMENT["sentiment — LLM<br/>→ SentimentInsights"]
-    COLLECT -->|"plan demande 'trends'"| TRENDS["trends — stats + LLM<br/>→ TrendInsights"]
-    SENTIMENT --> SYNTH["synthesize — LLM<br/>→ MarketReport"]
+    COLLECT -->|"plan demande 'sentiment'"| SENTIMENT["sentiment — LLM<br/>sortie : SentimentInsights"]
+    COLLECT -->|"plan demande 'trends'"| TRENDS["trends — stats + LLM<br/>sortie : TrendInsights"]
+    SENTIMENT --> SYNTH["synthesize — LLM<br/>sortie : MarketReport"]
     TRENDS --> SYNTH
     COLLECT -->|"plan vide"| SYNTH
-    SYNTH --> JUDGE["judge — LLM<br/>→ JudgeVerdict (3 critères)"]
+    SYNTH --> JUDGE["judge — LLM<br/>sortie : JudgeVerdict (3 critères)"]
     JUDGE -->|"un critère échoue,<br/>pas encore révisé"| SYNTH
     JUDGE -->|"tous les critères passent,<br/>ou déjà révisé"| OK(["FIN · rapport livré"])
 ```
 
 - **planner** *(LLM)* — produit un `AnalysisPlan` structuré `{analyses, platforms, rationale}` : analyse complète par défaut. Si la requête API impose `analyses` ou `platforms`, la contrainte est réappliquée en dur dans le code après l'appel — le plan ne dépend jamais de la bonne volonté du modèle.
-- **collect** *(pas de LLM)* — interroge les adaptateurs en parallèle. Échec total → analyse échouée ; échec partiel → mode dégradé.
+- **collect** *(pas de LLM)* — interroge les adaptateurs en parallèle. Un échec total fait échouer l'analyse ; un échec partiel passe en mode dégradé.
 - **sentiment** *(LLM)* — extraction structurée sur les avis : distribution, points forts/faibles, thèmes, citations.
 - **trends** *(stats pures + LLM)* — régression, volatilité, écart concurrentiel calculés en Python pur ; le LLM n'écrit que l'interprétation. Aucune statistique ne peut être hallucinée.
 - **synthesize** *(LLM)* — compile le `MarketReport` final, en intégrant erreurs de collecte et critique du juge en cas de révision.
@@ -98,7 +97,7 @@ bash scripts/demo.sh                # "iPhone 16" par défaut
 bash scripts/demo.sh "PS5"          # ou n'importe quel produit
 ```
 
-`demo.sh` : health-check → soumission → polling → rapport Markdown + métadonnées. Chaque analyse terminée est **archivée** dans `runs/<horodatage>-<produit>-<id>/` (`analysis.json` + `report.md`) ; le volume Docker rend ces artefacts visibles sur l'hôte. Le provider par défaut est `mock` : aucun appel réseau, résultat reproductible pour n'importe quel produit.
+`demo.sh` enchaîne health-check, soumission, polling, puis rapport Markdown et métadonnées. Chaque analyse terminée est **archivée** dans `runs/<horodatage>-<produit>-<id>/` (`analysis.json` + `report.md`) ; le volume Docker rend ces artefacts visibles sur l'hôte. Le provider par défaut est `mock` : aucun appel réseau, résultat reproductible pour n'importe quel produit.
 
 ### Option B — Local, sans Docker
 
@@ -123,7 +122,7 @@ Variables lues par `Settings` (`core/config.py`) depuis l'environnement ou `.env
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `LLM_PROVIDER` | `mock` | `mock` \| `groq` \| `deepseek` \| `openrouter` \| `openai` \| `anthropic` \| `ollama`, ou un nom libre + `LLM_BASE_URL` |
-| `LLM_MODEL` | *(vide → défaut par fournisseur)* | voir `DEFAULT_MODELS` dans `llm/factory.py` |
+| `LLM_MODEL` | *(vide = défaut par fournisseur)* | voir `DEFAULT_MODELS` dans `llm/factory.py` |
 | `LLM_API_KEY` | *(vide)* | requis sauf `mock`/`ollama` — vérifié au démarrage, échec immédiat sinon |
 | `LLM_BASE_URL` | *(vide)* | force un endpoint OpenAI-compatible personnalisé |
 | `LLM_TIMEOUT_S` | `60` | timeout par appel LLM |
@@ -215,9 +214,9 @@ des offres de 189,04 à 224,69 CAD [...] Le sentiment client est globalement fav
 
 Les outils (`tools/`) sont des fonctions/classes Python typées, sans dépendance à LangGraph ; les nœuds du graphe sont de fins wrappers. Cette séparation capacité/orchestration permet de tester chaque outil isolément.
 
-**1. Scraper — `tools/scraper/`.** `PlatformAdapter` : une méthode, `fetch(query) -> PlatformData` (offres, avis, historique de prix, popularité). Trois mocks enregistrés dans `KNOWN_PLATFORMS` : Amazon, Best Buy, Walmart ($ CAD). Données générées déterministiquement, seedées par `(produit, plateforme)` : n'importe quel produit fonctionne, même entrée → mêmes données. **Extension réelle** : implémenter `fetch()` sur une vraie source et l'enregistrer — aucune autre modification, ni dans le graphe, ni dans l'API.
+**1. Scraper — `tools/scraper/`.** `PlatformAdapter` : une méthode, `fetch(query) -> PlatformData` (offres, avis, historique de prix, popularité). Trois mocks enregistrés dans `KNOWN_PLATFORMS` : Amazon, Best Buy, Walmart ($ CAD). Données générées déterministiquement, seedées par `(produit, plateforme)` : n'importe quel produit fonctionne, même entrée, mêmes données. **Extension réelle** : implémenter `fetch()` sur une vraie source et l'enregistrer — aucune autre modification, ni dans le graphe, ni dans l'API.
 
-**2. Analyseur de sentiment — `tools/sentiment.py`.** Un prompt ciblé qui interdit d'inventer un point non ancré dans les avis fournis. Sortie structurée `SentimentInsights` : distribution, points forts/faibles, thèmes, citations, résumé. Liste d'avis vide → erreur explicite, remontée comme dégradation.
+**2. Analyseur de sentiment — `tools/sentiment.py`.** Un prompt ciblé qui interdit d'inventer un point non ancré dans les avis fournis. Sortie structurée `SentimentInsights` : distribution, points forts/faibles, thèmes, citations, résumé. Une liste d'avis vide lève une erreur explicite, remontée comme dégradation.
 
 **3. Analyseur de tendances — `tools/trends.py`.** `compute_trend_stats` est du Python pur : régression (moindres carrés) sur la moyenne journalière, volatilité, min/max/moyenne, plateformes la moins/la plus chère et écart en %. Le LLM n'écrit que l'interprétation — l'arithmétique ne transite jamais par le modèle.
 
@@ -251,25 +250,25 @@ uv run pytest -q
 
 **En résumé :** PostgreSQL comme source de vérité (`JSONB`, quatre tables : `analyses`, `analysis_events`, `collected_data_cache`, `agent_configs`), Redis cantonné à la file de jobs et au cache chaud, stockage objet pour les rapports rendus — dont `runs/` est l'embryon local livré. Le registre en mémoire est le choix MVP assumé que cette architecture remplace.
 
-➡️ **Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-4--architecture-de-données-et-stockage)**
+**Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-4--architecture-de-données-et-stockage)**
 
 ## Étape 5 — Monitoring et observabilité
 
 **En résumé :** le logging JSON structuré est déjà en place (`core/logging.py`) et s'expédie tel quel vers Loki/Datadog/ELK ; au-dessus, spans OpenTelemetry par nœud et LangSmith en complément LLM. Métriques clés : latence, échecs par outil (`AnalysisError.source`), tokens par analyse (`LLMUsage`), verdicts du juge par critère, taux de révision — avec alerting sur les dérives.
 
-➡️ **Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-5--monitoring-et-observabilité)**
+**Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-5--monitoring-et-observabilité)**
 
 ## Étape 6 — Scaling et optimisation
 
 **En résumé :** API stateless répliquée + file Redis/RabbitMQ + pool de workers (l'état sort du processus, voir étape 4) ; backpressure et quotas pour 100+ analyses simultanées ; coûts LLM par routage de modèle selon la tâche (le champ `purpose` existe déjà), prompt caching, batch ; cache à trois niveaux ; parallélisation déjà démontrée dans le graphe livré.
 
-➡️ **Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-6--scaling-et-optimisation)** (avec le schéma de déploiement)
+**Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-6--scaling-et-optimisation)** (avec le schéma de déploiement)
 
 ## Étape 7 — Amélioration continue et A/B testing
 
 **En résumé :** le LLM-as-judge est déjà implémenté (verdicts par critère + boucle bornée) — l'étendre en évaluation offline sur un golden set est direct ; prompts versionnés dans `agent_configs` avec A/B par assignation déterministe ; un endpoint de feedback utilisateur (à ajouter) alimente le jeu labellisé ; un nouveau type d'analyse s'ajoute comme une branche du graphe, avec déploiement canary.
 
-➡️ **Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-7--amélioration-continue-et-ab-testing)**
+**Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-7--amélioration-continue-et-ab-testing)**
 
 ## Limites connues et évolutions
 
