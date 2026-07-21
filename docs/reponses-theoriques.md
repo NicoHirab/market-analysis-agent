@@ -1,7 +1,5 @@
 # Réponses aux questions théoriques (étapes 4 à 7)
 
-> Réponses aux étapes 4 à 7 du test, dans l'ordre exact des questions posées. Chaque réponse s'appuie sur le code livré (chemins de fichiers à l'appui) ; le [README](../README.md) documente le système lui-même.
-
 ## Étape 4 — Architecture de données et stockage
 
 **Stocker les résultats d'analyse.** Table Postgres `analyses` : `id` (uuid), `product`, `plan` (jsonb), `report` (jsonb), `status`, `provider`, `model`, `duration_ms`, `created_at`. Les sorties du graphe sont des objets Pydantic déjà validés : `JSONB` les stocke tels quels tout en restant requêtables (index GIN — ex. filtrer les recommandations par priorité), sans dénormalisation.
