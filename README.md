@@ -49,12 +49,12 @@ flowchart TD
     JUDGE -->|"tous les critères passent,<br/>ou déjà révisé"| OK(["FIN · rapport livré"])
 ```
 
-- **planner** *(LLM)* — produit un `AnalysisPlan` structuré `{analyses, platforms, rationale}` : analyse complète par défaut. Si la requête API impose `analyses` ou `platforms`, la contrainte est réappliquée en dur dans le code après l'appel — le plan ne dépend jamais de la bonne volonté du modèle.
+- **planner** *(LLM)* — produit un `AnalysisPlan` structuré `{analyses, platforms, rationale}` : analyse complète par défaut. Si la requête API impose `analyses` ou `platforms`, la contrainte est réappliquée en dur dans le code après l'appel.
 - **collect** *(pas de LLM)* — interroge les adaptateurs en parallèle. Un échec total fait échouer l'analyse ; un échec partiel passe en mode dégradé.
 - **sentiment** *(LLM)* — extraction structurée sur les avis : distribution, points forts/faibles, thèmes, citations.
-- **trends** *(stats pures + LLM)* — régression, volatilité, écart concurrentiel calculés en Python pur ; le LLM n'écrit que l'interprétation. Aucune statistique ne peut être hallucinée.
+- **trends** *(stats pures + LLM)* — régression, volatilité, écart concurrentiel calculés en Python pur ; le LLM n'écrit que l'interprétation.
 - **synthesize** *(LLM)* — compile le `MarketReport` final, en intégrant erreurs de collecte et critique du juge en cas de révision.
-- **judge** *(LLM)* — évalue **trois critères** : ancrage dans les données, complétude par rapport au plan, actionnabilité. Verdict pass/fail + commentaire par critère ; le rapport n'est accepté que si **tous** passent — conjonction appliquée en code, jamais déléguée au flag du modèle. Un échec déclenche au plus une révision (`MAX_SYNTHESIS_PASSES = 2` dans `graph.py`). Désactivable : `JUDGE_ENABLED=false`.
+- **judge** *(LLM)* — évalue **trois critères** : ancrage dans les données, complétude par rapport au plan, actionnabilité. Verdict pass/fail + commentaire par critère ; le rapport n'est accepté que si **tous** passent — conjonction appliquée en code. Un échec déclenche au plus une révision (`MAX_SYNTHESIS_PASSES = 2` dans `graph.py`). Désactivable : `JUDGE_ENABLED=false`.
 
 L'état circule dans un `TypedDict` unique (`agent/state.py`) ; les branches parallèles fusionnent sans conflit grâce aux reducers :
 
@@ -137,7 +137,7 @@ Variables lues par `Settings` (`core/config.py`) depuis l'environnement ou `.env
 
 ### Orchestration
 
-Aucune règle métier codée en dur : le nœud `planner` (LLM, sortie structurée) décide *quoi* faire. Le graphe garantit *comment* : routage conditionnel (`route_after_collect`), fan-out réellement parallèle entre `sentiment` et `trends`, fan-in sans conflit par reducers, et boucle de révision strictement bornée (`route_after_judge` — jamais de boucle infinie, même si le juge reste insatisfait). Résultat : un agent piloté par LLM qui reste prévisible, testable et borné.
+Aucune règle métier codée en dur : le nœud `planner` (LLM, sortie structurée) décide *quoi* faire. Le graphe garantit *comment* : routage conditionnel (`route_after_collect`), fan-out réellement parallèle entre `sentiment` et `trends`, fan-in sans conflit par reducers, et boucle de révision strictement bornée (`route_after_judge`).
 
 ### Abstraction LLM
 
@@ -158,7 +158,7 @@ Ce seam rend possibles à la fois la démo zéro-clé et les 66 tests hors-ligne
 | `GET /api/v1/analyses/{id}/report.md` | Le rapport rendu en Markdown (`text/markdown`). |
 | `GET /health` | Liveness + fournisseur/modèle actif (aucun secret exposé). |
 
-`analyses: "auto"` (défaut) déclenche l'analyse complète ; une liste explicite (ex. `["trends"]`) restreint le périmètre — contrainte garantie, appliquée côté code.
+`analyses: "auto"` (défaut) déclenche l'analyse complète ; une liste explicite (ex. `["trends"]`) restreint le périmètre (appliqué côté code).
 
 ### Exemples
 
@@ -208,7 +208,7 @@ Les outils (`tools/`) sont des fonctions/classes Python typées, sans dépendanc
 
 **3. Analyseur de tendances — `tools/trends.py`.** `compute_trend_stats` est du Python pur : régression (moindres carrés) sur la moyenne journalière, volatilité, min/max/moyenne, plateformes la moins/la plus chère et écart en %. Le LLM n'écrit que l'interprétation — l'arithmétique ne transite jamais par le modèle.
 
-**4. Générateur de rapport — `tools/report.py`.** `MarketReport` (Pydantic) est le contrat renvoyé en JSON ; `render_markdown()` projette le même modèle en Markdown français. Une seule source de vérité : les deux représentations restent synchronisées par construction.
+**4. Générateur de rapport — `tools/report.py`.** `MarketReport` (Pydantic) est le contrat renvoyé en JSON ; `render_markdown()` projette le même modèle en Markdown français — les deux représentations restent synchronisées par construction.
 
 ## Tests
 
