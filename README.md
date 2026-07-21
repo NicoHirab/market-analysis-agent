@@ -3,7 +3,7 @@
 > Agent d'analyse de marché e-commerce piloté par LLM et orchestré avec LangGraph — fonctionne de bout en bout **sans aucune clé API**, et change de fournisseur LLM en une seule variable d'environnement.
 
 
-Le code couvre les étapes 1 à 3 de l'énoncé ; les étapes 4 à 7, théoriques, sont résumées plus bas et développées dans [docs/reponses-theoriques.md](docs/reponses-theoriques.md).
+Le code couvre les étapes 1 à 3 de l'énoncé ; les étapes 4 à 7, théoriques, sont traitées dans [docs/reponses-theoriques.md](docs/reponses-theoriques.md).
 
 ## Sommaire
 
@@ -14,11 +14,8 @@ Le code couvre les étapes 1 à 3 de l'énoncé ; les étapes 4 à 7, théorique
 5. [API](#api)
 6. [Outils](#outils)
 7. [Tests](#tests)
-8. [Étape 4 — Architecture de données et stockage](#étape-4--architecture-de-données-et-stockage)
-9. [Étape 5 — Monitoring et observabilité](#étape-5--monitoring-et-observabilité)
-10. [Étape 6 — Scaling et optimisation](#étape-6--scaling-et-optimisation)
-11. [Étape 7 — Amélioration continue et A/B testing](#étape-7--amélioration-continue-et-ab-testing)
-12. [Limites connues et évolutions](#limites-connues-et-évolutions)
+8. [Réponses aux questions théoriques (étapes 4 à 7)](docs/reponses-theoriques.md)
+9. [Limites connues et évolutions](#limites-connues-et-évolutions)
 
 ## Présentation
 
@@ -80,7 +77,7 @@ class AnalysisState(TypedDict, total=False):
 | `llm` | `src/market_agent/llm/` | Factory provider-agnostic, seam `StructuredLLM`, implémentation LangChain, provider mock déterministe |
 | `core` | `src/market_agent/core/` | Configuration (`pydantic-settings`), erreurs typées, logging JSON structuré |
 
-Un processus par instance : chaque requête crée un `AnalysisState`, exécute le graphe en tâche de fond, et stocke le résultat dans un registre en mémoire — limite MVP assumée, détaillée à l'étape 4.
+Un processus par instance : chaque requête crée un `AnalysisState`, exécute le graphe en tâche de fond, et stocke le résultat dans un registre en mémoire — limite MVP assumée, détaillée dans les réponses théoriques ([étape 4](docs/reponses-theoriques.md#étape-4--architecture-de-données-et-stockage)).
 
 ## Démarrage rapide
 
@@ -246,39 +243,15 @@ uv run pytest -q
 
 `uv run ruff check` et `uv run ruff format --check` sont propres sur `src` et `tests`.
 
-## Étape 4 — Architecture de données et stockage
-
-**En résumé :** PostgreSQL comme source de vérité (`JSONB`, quatre tables : `analyses`, `analysis_events`, `collected_data_cache`, `agent_configs`), Redis cantonné à la file de jobs et au cache chaud, stockage objet pour les rapports rendus — dont `runs/` est l'embryon local livré. Le registre en mémoire est le choix MVP assumé que cette architecture remplace.
-
-**Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-4--architecture-de-données-et-stockage)**
-
-## Étape 5 — Monitoring et observabilité
-
-**En résumé :** le logging JSON structuré est déjà en place (`core/logging.py`) et s'expédie tel quel vers Loki/Datadog/ELK ; au-dessus, spans OpenTelemetry par nœud et LangSmith en complément LLM. Métriques clés : latence, échecs par outil (`AnalysisError.source`), tokens par analyse (`LLMUsage`), verdicts du juge par critère, taux de révision — avec alerting sur les dérives.
-
-**Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-5--monitoring-et-observabilité)**
-
-## Étape 6 — Scaling et optimisation
-
-**En résumé :** API stateless répliquée + file Redis/RabbitMQ + pool de workers (l'état sort du processus, voir étape 4) ; backpressure et quotas pour 100+ analyses simultanées ; coûts LLM par routage de modèle selon la tâche (le champ `purpose` existe déjà), prompt caching, batch ; cache à trois niveaux ; parallélisation déjà démontrée dans le graphe livré.
-
-**Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-6--scaling-et-optimisation)** (avec le schéma de déploiement)
-
-## Étape 7 — Amélioration continue et A/B testing
-
-**En résumé :** le LLM-as-judge est déjà implémenté (verdicts par critère + boucle bornée) — l'étendre en évaluation offline sur un golden set est direct ; prompts versionnés dans `agent_configs` avec A/B par assignation déterministe ; un endpoint de feedback utilisateur (à ajouter) alimente le jeu labellisé ; un nouveau type d'analyse s'ajoute comme une branche du graphe, avec déploiement canary.
-
-**Réponse complète : [docs/reponses-theoriques.md](docs/reponses-theoriques.md#étape-7--amélioration-continue-et-ab-testing)**
-
 ## Limites connues et évolutions
 
 - **Données mockées** — pas de scraping réel (fragilité, CGU des marketplaces). La seam `PlatformAdapter` est prête pour un vrai adaptateur ; aucun n'est branché.
-- **Registre de jobs en mémoire** — mono-processus ; le statut API repart de zéro au redémarrage (les artefacts survivent dans `runs/`). Upgrade Postgres/Redis argumentée à l'étape 4.
-- **Pas d'authentification** — à ajouter avant tout déploiement non local (clé API, quotas par client — voir étape 6).
-- **Progression par polling** — pas de streaming ; un flux SSE nœud par nœud a existé puis a été retiré pour garder le périmètre simple (rejeu durable via `analysis_events`, étape 4).
-- **Pas de cache** — chaque requête rejoue tout le graphe (voir étape 6).
-- **Coût non chiffré** — tokens mesurés par analyse (`LLMUsage`), conversion en coût non implémentée (étape 5).
-- **Un seul juge, une seule grille** — pas de vote multi-modèle, pas encore de golden set (étape 7).
+- **Registre de jobs en mémoire** — mono-processus ; le statut API repart de zéro au redémarrage (les artefacts survivent dans `runs/`). Upgrade Postgres/Redis argumentée à l'[étape 4](docs/reponses-theoriques.md#étape-4--architecture-de-données-et-stockage).
+- **Pas d'authentification** — à ajouter avant tout déploiement non local (clé API, quotas par client — voir l'[étape 6](docs/reponses-theoriques.md#étape-6--scaling-et-optimisation)).
+- **Progression par polling** — pas de streaming ; un flux SSE nœud par nœud a existé puis a été retiré pour garder le périmètre simple (rejeu durable via `analysis_events`, [étape 4](docs/reponses-theoriques.md#étape-4--architecture-de-données-et-stockage)).
+- **Pas de cache** — chaque requête rejoue tout le graphe (voir l'[étape 6](docs/reponses-theoriques.md#étape-6--scaling-et-optimisation)).
+- **Coût non chiffré** — tokens mesurés par analyse (`LLMUsage`), conversion en coût non implémentée ([étape 5](docs/reponses-theoriques.md#étape-5--monitoring-et-observabilité)).
+- **Un seul juge, une seule grille** — pas de vote multi-modèle, pas encore de golden set ([étape 7](docs/reponses-theoriques.md#étape-7--amélioration-continue-et-ab-testing)).
 
 ---
 
